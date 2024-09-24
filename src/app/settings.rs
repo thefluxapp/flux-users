@@ -7,10 +7,16 @@ use serde::Deserialize;
 pub struct AppSettings {
     pub _name: String,
     pub http: HttpSettings,
+    pub db: DBSettings,
 }
 
 #[derive(Deserialize, Clone)]
 pub struct HttpSettings {
+    pub endpoint: String,
+}
+
+#[derive(Deserialize, Clone)]
+pub struct DBSettings {
     pub endpoint: String,
 }
 

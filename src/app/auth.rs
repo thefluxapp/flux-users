@@ -1,8 +1,12 @@
 use flux_auth_api::auth_service_server::AuthServiceServer;
 use grpc::GrpcAuthService;
 
-mod grpc;
+use super::state::AppState;
 
-pub fn auth_service() -> AuthServiceServer<GrpcAuthService> {
-    AuthServiceServer::new(GrpcAuthService::default())
+mod grpc;
+mod repo;
+mod service;
+
+pub fn auth_service(state: AppState) -> AuthServiceServer<GrpcAuthService> {
+    AuthServiceServer::new(GrpcAuthService::new(state))
 }

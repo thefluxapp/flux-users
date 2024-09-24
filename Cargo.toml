@@ -12,8 +12,11 @@ flux-auth-api = { path = "lib/api" }
 
 anyhow = "1.0.89"
 config = { version = "0.14", default-features = false, features = ["toml"] }
+log = "0.4.22"
 serde = { version = "1.0.210", features = ["derive"] }
 serde_json = "1.0.128"
+validator = { version = "0.18.1", features = ["derive"] }
+uuid = { version = "1.10.0", features = ["v7"] }
 
 axum = "0.7.6"
 
@@ -22,3 +25,8 @@ tokio = { version = "1.40.0", features = ["full"] }
 tonic = "0.12.2"
 tonic-reflection = "0.12.2"
 tonic-health = "0.12.2"
+
+sea-orm = { version = "1.0.1", features = ["sqlx-postgres", "runtime-tokio-rustls"] }
+
+passkey = "0.3.0"
+base64 = "0.22.1"

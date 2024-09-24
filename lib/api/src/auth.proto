@@ -6,7 +6,7 @@ service AuthService {
 }
 
 message JoinRequest {
-    optional string foo = 1;
+    optional string email = 1;
 }
 
 message JoinResponse {

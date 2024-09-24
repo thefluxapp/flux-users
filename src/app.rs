@@ -7,6 +7,7 @@ use tonic::service::Routes;
 mod auth;
 mod settings;
 mod state;
+mod error;
 
 pub async fn run() -> Result<(), Error> {
     let settings = AppSettings::new()?;
@@ -33,7 +34,7 @@ async fn http(state: &AppState) -> Result<(), Error> {
     let router = routes
         .add_service(reflection_service)
         .add_service(health_service)
-        .add_service(auth::auth_service())
+        .add_service(auth::auth_service(state.clone()))
         .into_axum_router();
 
     let listener = tokio::net::TcpListener::bind(&state.settings.http.endpoint).await?;

@@ -11,8 +11,8 @@ impl MigrationTrait for Migration {
                 table_auto(Users::Table)
                     .col(uuid(Users::Id).primary_key())
                     .col(text(Users::Email))
-                    .col(text(Users::FirstName))
-                    .col(text(Users::LastName))
+                    .col(text_null(Users::FirstName))
+                    .col(text_null(Users::LastName))
                     .to_owned(),
             )
             .await
