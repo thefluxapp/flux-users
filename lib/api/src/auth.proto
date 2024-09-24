@@ -10,5 +10,5 @@ message JoinRequest {
 }
 
 message JoinResponse {
-    optional string bar = 1;
+    optional string response = 1;
 }
