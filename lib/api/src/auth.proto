@@ -1,0 +1,14 @@
+syntax = "proto3";
+package flux.auth;
+
+service AuthService {
+    rpc Join (JoinRequest) returns (JoinResponse);
+}
+
+message JoinRequest {
+    optional string foo = 1;
+}
+
+message JoinResponse {
+    optional string bar = 1;
+}
