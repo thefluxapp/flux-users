@@ -3,11 +3,14 @@ use std::env;
 use config::{Config, ConfigError, Environment, File};
 use serde::Deserialize;
 
+use super::auth::settings::AuthSettings;
+
 #[derive(Deserialize, Clone)]
 pub struct AppSettings {
     pub _name: String,
     pub http: HttpSettings,
     pub db: DBSettings,
+    pub auth: AuthSettings,
 }
 
 #[derive(Deserialize, Clone)]

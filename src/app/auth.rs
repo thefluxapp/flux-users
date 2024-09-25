@@ -1,13 +1,22 @@
 use flux_auth_api::auth_service_server::AuthServiceServer;
 use grpc::GrpcAuthService;
+use serde::Serialize;
+use uuid::Uuid;
 
 use super::state::AppState;
 
 mod grpc;
+mod passkey;
 mod repo;
 mod service;
-mod passkey;
+pub(crate) mod settings;
 
 pub fn auth_service(state: AppState) -> AuthServiceServer<GrpcAuthService> {
     AuthServiceServer::new(GrpcAuthService::new(state))
+}
+
+#[derive(Serialize)]
+pub struct AuthToken {
+    pub sub: Uuid,
+    pub exp: i64,
 }

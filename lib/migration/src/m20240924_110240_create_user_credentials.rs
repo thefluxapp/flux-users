@@ -20,7 +20,7 @@ impl MigrationTrait for Migration {
                             .to(Users::Table, Users::Id),
                     )
                     .col(binary(UserCredentials::PublicKey))
-                    .col(binary(UserCredentials::PublicKeyAlgorithm))
+                    .col(integer(UserCredentials::PublicKeyAlgorithm))
                     .to_owned(),
             )
             .await

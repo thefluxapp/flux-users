@@ -2,7 +2,8 @@ syntax = "proto3";
 package flux.auth;
 
 service AuthService {
-    rpc Join (JoinRequest) returns (JoinResponse);
+    rpc Join(JoinRequest) returns (JoinResponse);
+    rpc Complete(CompleteRequest) returns (CompleteResponse);
 }
 
 message JoinRequest {
@@ -11,4 +12,12 @@ message JoinRequest {
 
 message JoinResponse {
     optional string response = 1;
+}
+
+message CompleteRequest {
+    optional string request = 1;
+}
+
+message CompleteResponse {
+    optional string jwt = 1;
 }

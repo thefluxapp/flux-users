@@ -5,3 +5,7 @@ endpoint = "0.0.0.0:3000"
 
 [db]
 endpoint = "postgres://postgres:postgres@0.0.0.0:5432/flux-auth"
+
+[auth.rp]
+id = "theflux.app"
+name = "Flux"

@@ -1,9 +1,8 @@
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_with::base64::{Base64, UrlSafe};
 use serde_with::formats::Unpadded;
 use serde_with::serde_as;
 use uuid::Uuid;
-
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -73,9 +72,38 @@ pub struct PublicKeyCredentialUserEntity {
     pub display_name: String,
 }
 
-// #[serde_as]
-// #[derive(Deserialize, Debug)]
-// pub struct PublicKeyCredentialWithAttestation {
-//     pub response: AuthenticatorAttestationResponse,
-//     pub id: String,
-// }
+#[serde_as]
+#[derive(Deserialize, Debug)]
+pub struct PublicKeyCredentialWithAttestation {
+    pub response: AuthenticatorAttestationResponse,
+    pub id: String,
+}
+
+#[serde_as]
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthenticatorAttestationResponse {
+    #[serde(rename = "clientDataJSON")]
+    #[serde_as(as = "Base64<UrlSafe, Unpadded>")]
+    pub client_data: ClientData,
+    // pub attestation_object: String,
+    // pub transports: Vec<String>,
+    #[serde_as(as = "Base64<UrlSafe, Unpadded>")]
+    pub public_key: Vec<u8>,
+    pub public_key_algorithm: i32,
+}
+
+#[serde_as]
+#[derive(Deserialize, Debug, Serialize)]
+pub struct ClientData {
+    #[serde(rename = "type")]
+    pub tp: String,
+    pub challenge: String,
+    pub origin: String,
+}
+
+impl Into<ClientData> for Vec<u8> {
+    fn into(self) -> ClientData {
+        serde_json::from_slice::<ClientData>(&self).unwrap()
+    }
+}
