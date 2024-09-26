@@ -11,6 +11,7 @@ resolver = "2"
 flux-auth-api = { path = "lib/api" }
 
 anyhow = "1.0.89"
+thiserror = "1.0.64"
 base64 = "0.22.1"
 config = { version = "0.14", default-features = false, features = ["toml"] }
 log = "0.4.22"

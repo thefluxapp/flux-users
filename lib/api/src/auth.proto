@@ -28,5 +28,8 @@ message MeRequest {
 }
 
 message MeResponse {
-    optional string name = 1;
+    optional string id = 1;
+    optional string title = 2;
+    optional string first_name = 3;
+    optional string last_name = 4;
 }

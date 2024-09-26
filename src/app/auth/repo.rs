@@ -3,10 +3,18 @@ use sea_orm::{
     ActiveModelTrait, ColumnTrait, ConnectionTrait, EntityTrait, IntoActiveModel as _, ModelTrait,
     QueryFilter, QuerySelect as _,
 };
+use uuid::Uuid;
 
 pub mod user;
 pub mod user_challenge;
 pub mod user_credential;
+
+pub async fn find_user_by_id<T: ConnectionTrait>(
+    db: &T,
+    id: Uuid,
+) -> Result<Option<user::Model>, Error> {
+    Ok(user::Entity::find_by_id(id).one(db).await?)
+}
 
 pub async fn find_user_by_email_with_credentials<T: ConnectionTrait>(
     db: &T,

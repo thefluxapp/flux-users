@@ -164,11 +164,9 @@ pub struct CompleteResponse {
 }
 
 pub async fn me(db: &DbConn, request: MeRequest) -> Result<MeResponse, Error> {
-    println!("QQQ: {}", request.user_id);
+    let user = repo::find_user_by_id(db, request.user_id).await?;
 
-    Ok(MeResponse {
-        name: "QQQ".to_string(),
-    })
+    Ok(MeResponse { user })
 }
 
 #[derive(Deserialize, Validate)]
@@ -178,7 +176,7 @@ pub struct MeRequest {
 
 #[derive(Deserialize, Validate)]
 pub struct MeResponse {
-    pub name: String,
+    pub user: Option<repo::user::Model>,
 }
 
 pub fn create_jwt(private_key: &Vec<u8>, user: &repo::user::Model) -> Result<String, Error> {

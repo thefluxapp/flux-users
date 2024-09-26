@@ -6,7 +6,7 @@ use flux_auth_api::{
 use serde_json::json;
 use tonic::{Request, Response, Status};
 use uuid::Uuid;
-use validator::Validate;
+use validator::{Validate, ValidationErrors};
 
 use super::service;
 use crate::app::{error::AppError, state::AppState};
@@ -55,7 +55,7 @@ async fn join(
 }
 
 impl TryFrom<JoinRequest> for service::JoinRequest {
-    type Error = Error;
+    type Error = AppError;
 
     fn try_from(request: JoinRequest) -> Result<Self, Self::Error> {
         let data = Self {
@@ -110,15 +110,16 @@ impl Into<CompleteResponse> for service::CompleteResponse {
 async fn me(AppState { db, .. }: &AppState, request: MeRequest) -> Result<MeResponse, AppError> {
     let response = service::me(db, request.try_into()?).await?;
 
-    Ok(response.into())
+    Ok(response.try_into()?)
 }
 
 impl TryFrom<MeRequest> for service::MeRequest {
-    type Error = Error;
+    type Error = AppError;
 
     fn try_from(request: MeRequest) -> Result<Self, Self::Error> {
         let data = Self {
-            user_id: Uuid::parse_str(request.user_id())?,
+            user_id: Uuid::parse_str(request.user_id())
+                .map_err(|_| AppError::Validation(ValidationErrors::new()))?,
         };
         data.validate()?;
 
@@ -126,10 +127,17 @@ impl TryFrom<MeRequest> for service::MeRequest {
     }
 }
 
-impl Into<MeResponse> for service::MeResponse {
-    fn into(self) -> MeResponse {
-        MeResponse {
-            name: Some(self.name),
-        }
+impl TryInto<MeResponse> for service::MeResponse {
+    type Error = AppError;
+
+    fn try_into(self) -> Result<MeResponse, Self::Error> {
+        let user = self.user.ok_or(AppError::NotFound)?;
+
+        Ok(MeResponse {
+            id: Some(user.id.into()),
+            title: Some("TITLE".into()),
+            first_name: user.first_name,
+            last_name: user.last_name,
+        })
     }
 }
