@@ -4,6 +4,7 @@ package flux.auth;
 service AuthService {
     rpc Join(JoinRequest) returns (JoinResponse);
     rpc Complete(CompleteRequest) returns (CompleteResponse);
+    rpc Me(MeRequest) returns (MeResponse);
 }
 
 message JoinRequest {
@@ -20,4 +21,12 @@ message CompleteRequest {
 
 message CompleteResponse {
     optional string jwt = 1;
+}
+
+message MeRequest {
+    optional string user_id = 1;
+}
+
+message MeResponse {
+    optional string name = 1;
 }

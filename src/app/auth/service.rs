@@ -20,7 +20,7 @@ use super::{
     },
     repo,
     settings::AuthSettings,
-    AuthToken,
+    Claims,
 };
 
 pub async fn join(
@@ -151,21 +151,6 @@ pub async fn complete(
     Ok(CompleteResponse { jwt })
 }
 
-pub fn create_jwt(private_key: &Vec<u8>, user: &repo::user::Model) -> Result<String, Error> {
-    let claims = AuthToken {
-        sub: user.id,
-        exp: (Utc::now() + Duration::days(300)).timestamp(),
-    };
-
-    let jwt = encode(
-        &Header::new(Algorithm::RS256),
-        &claims,
-        &EncodingKey::from_rsa_pem(private_key)?,
-    )?;
-
-    Ok(jwt)
-}
-
 #[derive(Deserialize, Validate)]
 pub struct CompleteRequest {
     pub first_name: String,
@@ -176,6 +161,39 @@ pub struct CompleteRequest {
 #[derive(Serialize)]
 pub struct CompleteResponse {
     pub jwt: String,
+}
+
+pub async fn me(db: &DbConn, request: MeRequest) -> Result<MeResponse, Error> {
+    println!("QQQ: {}", request.user_id);
+
+    Ok(MeResponse {
+        name: "QQQ".to_string(),
+    })
+}
+
+#[derive(Deserialize, Validate)]
+pub struct MeRequest {
+    pub user_id: Uuid,
+}
+
+#[derive(Deserialize, Validate)]
+pub struct MeResponse {
+    pub name: String,
+}
+
+pub fn create_jwt(private_key: &Vec<u8>, user: &repo::user::Model) -> Result<String, Error> {
+    let claims = Claims {
+        sub: user.id,
+        exp: (Utc::now() + Duration::days(300)).timestamp().try_into()?,
+    };
+
+    let jwt = encode(
+        &Header::new(Algorithm::RS256),
+        &claims,
+        &EncodingKey::from_rsa_pem(private_key)?,
+    )?;
+
+    Ok(jwt)
 }
 
 fn validate_origin(origin: &str, expected: &str) -> Result<(), Error> {

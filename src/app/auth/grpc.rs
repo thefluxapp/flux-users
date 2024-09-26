@@ -1,9 +1,11 @@
 use anyhow::Error;
 use flux_auth_api::{
     auth_service_server::AuthService, CompleteRequest, CompleteResponse, JoinRequest, JoinResponse,
+    MeRequest, MeResponse,
 };
 use serde_json::json;
 use tonic::{Request, Response, Status};
+use uuid::Uuid;
 use validator::Validate;
 
 use super::service;
@@ -32,6 +34,12 @@ impl AuthService for GrpcAuthService {
         request: Request<CompleteRequest>,
     ) -> Result<Response<CompleteResponse>, Status> {
         let response = complete(&self.state, request.into_inner()).await?;
+
+        Ok(Response::new(response))
+    }
+
+    async fn me(&self, request: Request<MeRequest>) -> Result<Response<MeResponse>, Status> {
+        let response = me(&self.state, request.into_inner()).await?;
 
         Ok(Response::new(response))
     }
@@ -95,6 +103,33 @@ impl Into<CompleteResponse> for service::CompleteResponse {
     fn into(self) -> CompleteResponse {
         CompleteResponse {
             jwt: Some(self.jwt),
+        }
+    }
+}
+
+async fn me(AppState { db, .. }: &AppState, request: MeRequest) -> Result<MeResponse, AppError> {
+    let response = service::me(db, request.try_into()?).await?;
+
+    Ok(response.into())
+}
+
+impl TryFrom<MeRequest> for service::MeRequest {
+    type Error = Error;
+
+    fn try_from(request: MeRequest) -> Result<Self, Self::Error> {
+        let data = Self {
+            user_id: Uuid::parse_str(request.user_id())?,
+        };
+        data.validate()?;
+
+        Ok(data)
+    }
+}
+
+impl Into<MeResponse> for service::MeResponse {
+    fn into(self) -> MeResponse {
+        MeResponse {
+            name: Some(self.name),
         }
     }
 }

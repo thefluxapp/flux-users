@@ -16,7 +16,7 @@ pub fn auth_service(state: AppState) -> AuthServiceServer<GrpcAuthService> {
 }
 
 #[derive(Serialize)]
-pub struct AuthToken {
+pub struct Claims {
     pub sub: Uuid,
-    pub exp: i64,
+    pub exp: usize,
 }
