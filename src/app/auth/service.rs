@@ -3,7 +3,6 @@ use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
 use chrono::{Duration, Utc};
 use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
 use rand::RngCore as _;
-
 use sea_orm::{DbConn, Set, TransactionTrait as _};
 use serde::{Deserialize, Serialize};
 use url::Url;

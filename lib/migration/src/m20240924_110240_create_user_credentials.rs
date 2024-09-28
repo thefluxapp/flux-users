@@ -1,7 +1,5 @@
 use sea_orm_migration::{prelude::*, schema::*};
 
-use crate::m20240924_105951_create_users::Users;
-
 #[derive(DeriveMigrationName)]
 pub struct Migration;
 
@@ -13,12 +11,12 @@ impl MigrationTrait for Migration {
                 table_auto(UserCredentials::Table)
                     .col(text(UserCredentials::Id).primary_key())
                     .col(uuid(UserCredentials::UserId))
-                    .foreign_key(
-                        ForeignKey::create()
-                            .name("fk_user_credentials_user_id")
-                            .from(UserCredentials::Table, UserCredentials::UserId)
-                            .to(Users::Table, Users::Id),
-                    )
+                    // .foreign_key(
+                    //     ForeignKey::create()
+                    //         .name("fk_user_credentials_user_id")
+                    //         .from(UserCredentials::Table, UserCredentials::UserId)
+                    //         .to(Users::Table, Users::Id),
+                    // )
                     .col(binary(UserCredentials::PublicKey))
                     .col(integer(UserCredentials::PublicKeyAlgorithm))
                     .to_owned(),

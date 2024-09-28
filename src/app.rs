@@ -5,9 +5,10 @@ use state::AppState;
 use tonic::service::Routes;
 
 mod auth;
+mod error;
 mod settings;
 mod state;
-mod error;
+mod users;
 
 pub async fn run() -> Result<(), Error> {
     let settings = AppSettings::new()?;
@@ -22,6 +23,7 @@ async fn http(state: &AppState) -> Result<(), Error> {
     let reflection_service = tonic_reflection::server::Builder::configure()
         .register_encoded_file_descriptor_set(tonic_health::pb::FILE_DESCRIPTOR_SET)
         .register_encoded_file_descriptor_set(flux_auth_api::AUTH_FILE_DESCRIPTOR_SET)
+        .register_encoded_file_descriptor_set(flux_auth_api::USERS_FILE_DESCRIPTOR_SET)
         .build_v1alpha()?;
 
     let (_, health_service) = tonic_health::server::health_reporter();
@@ -35,6 +37,7 @@ async fn http(state: &AppState) -> Result<(), Error> {
         .add_service(reflection_service)
         .add_service(health_service)
         .add_service(auth::auth_service(state.clone()))
+        .add_service(users::users_service(state.clone()))
         .into_axum_router();
 
     let listener = tokio::net::TcpListener::bind(&state.settings.http.endpoint).await?;
