@@ -1,0 +1,35 @@
+syntax = "proto3";
+package flux.auth;
+
+service AuthService {
+    rpc Join(JoinRequest) returns (JoinResponse);
+    rpc Complete(CompleteRequest) returns (CompleteResponse);
+    rpc Me(MeRequest) returns (MeResponse);
+}
+
+message JoinRequest {
+    optional string email = 1;
+}
+
+message JoinResponse {
+    optional string response = 1;
+}
+
+message CompleteRequest {
+    optional string request = 1;
+}
+
+message CompleteResponse {
+    optional string jwt = 1;
+}
+
+message MeRequest {
+    optional string user_id = 1;
+}
+
+message MeResponse {
+    optional string id = 1;
+    optional string title = 2;
+    optional string first_name = 3;
+    optional string last_name = 4;
+}
