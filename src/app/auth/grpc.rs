@@ -140,7 +140,7 @@ mod me {
             let user = self.user.ok_or(AppError::NotFound)?;
 
             Ok(MeResponse {
-                id: Some(user.id.into()),
+                user_id: Some(user.id.into()),
                 name: Some(user.name()),
                 first_name: Some(user.first_name),
                 last_name: Some(user.last_name),
