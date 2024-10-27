@@ -65,8 +65,9 @@ impl Into<GetUsersResponse> for service::GetUsersResponse {
                 .iter()
                 .map(|user| User {
                     user_id: Some(user.id.into()),
-                    first_name: user.first_name.clone(),
-                    last_name: user.last_name.clone(),
+                    first_name: Some(user.first_name.clone()),
+                    last_name: Some(user.last_name.clone()),
+                    name: Some(user.name()),
                 })
                 .collect(),
         }

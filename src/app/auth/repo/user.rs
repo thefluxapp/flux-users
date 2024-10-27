@@ -7,10 +7,16 @@ pub struct Model {
     #[sea_orm(primary_key, auto_increment = false)]
     pub id: Uuid,
     pub email: String,
-    pub first_name: Option<String>,
-    pub last_name: Option<String>,
+    pub first_name: String,
+    pub last_name: String,
     pub created_at: DateTime,
     pub updated_at: DateTime,
+}
+
+impl Model {
+    pub fn name(&self) -> String {
+        [self.first_name.clone(), self.last_name.clone()].join(" ")
+    }
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]

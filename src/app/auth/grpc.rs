@@ -5,8 +5,7 @@ use flux_auth_api::{
 };
 use serde_json::json;
 use tonic::{Request, Response, Status};
-use uuid::Uuid;
-use validator::{Validate, ValidationErrors};
+use validator::Validate;
 
 use super::service;
 use crate::app::{error::AppError, state::AppState};
@@ -113,31 +112,39 @@ async fn me(AppState { db, .. }: &AppState, request: MeRequest) -> Result<MeResp
     Ok(response.try_into()?)
 }
 
-impl TryFrom<MeRequest> for service::MeRequest {
-    type Error = AppError;
+mod me {
+    use flux_auth_api::{MeRequest, MeResponse};
+    use uuid::Uuid;
+    use validator::{Validate as _, ValidationErrors};
 
-    fn try_from(request: MeRequest) -> Result<Self, Self::Error> {
-        let data = Self {
-            user_id: Uuid::parse_str(request.user_id())
-                .map_err(|_| AppError::Validation(ValidationErrors::new()))?,
-        };
-        data.validate()?;
+    use crate::app::{auth::service, error::AppError};
 
-        Ok(data)
+    impl TryFrom<MeRequest> for service::me::Request {
+        type Error = AppError;
+
+        fn try_from(request: MeRequest) -> Result<Self, Self::Error> {
+            let data = Self {
+                user_id: Uuid::parse_str(request.user_id())
+                    .map_err(|_| AppError::Validation(ValidationErrors::new()))?,
+            };
+            data.validate()?;
+
+            Ok(data)
+        }
     }
-}
 
-impl TryInto<MeResponse> for service::MeResponse {
-    type Error = AppError;
+    impl TryInto<MeResponse> for service::me::Response {
+        type Error = AppError;
 
-    fn try_into(self) -> Result<MeResponse, Self::Error> {
-        let user = self.user.ok_or(AppError::NotFound)?;
+        fn try_into(self) -> Result<MeResponse, Self::Error> {
+            let user = self.user.ok_or(AppError::NotFound)?;
 
-        Ok(MeResponse {
-            id: Some(user.id.into()),
-            title: Some("TITLE".into()),
-            first_name: user.first_name,
-            last_name: user.last_name,
-        })
+            Ok(MeResponse {
+                user_id: Some(user.id.into()),
+                name: Some(user.name()),
+                first_name: Some(user.first_name),
+                last_name: Some(user.last_name),
+            })
+        }
     }
 }

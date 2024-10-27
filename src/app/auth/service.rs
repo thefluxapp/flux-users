@@ -118,9 +118,8 @@ pub async fn complete(
         repo::user::Model {
             id: user_challenge.user_id,
             email,
-            first_name: Some(request.first_name.clone()),
-            last_name: Some(request.last_name.clone()),
-            // passkeys: todo!(),
+            first_name: request.first_name.clone(),
+            last_name: request.last_name.clone(),
             created_at: Utc::now().naive_utc(),
             updated_at: Utc::now().naive_utc(),
         },
@@ -162,20 +161,28 @@ pub struct CompleteResponse {
     pub jwt: String,
 }
 
-pub async fn me(db: &DbConn, request: MeRequest) -> Result<MeResponse, Error> {
+pub async fn me(db: &DbConn, request: me::Request) -> Result<me::Response, Error> {
     let user = repo::find_user_by_id(db, request.user_id).await?;
 
-    Ok(MeResponse { user })
+    Ok(me::Response { user })
 }
 
-#[derive(Deserialize, Validate)]
-pub struct MeRequest {
-    pub user_id: Uuid,
-}
+pub mod me {
+    use serde::Deserialize;
+    use uuid::Uuid;
+    use validator::Validate;
 
-#[derive(Deserialize, Validate)]
-pub struct MeResponse {
-    pub user: Option<repo::user::Model>,
+    use crate::app::auth::repo::user;
+
+    #[derive(Deserialize, Validate)]
+    pub struct Request {
+        pub user_id: Uuid,
+    }
+
+    #[derive(Deserialize, Validate)]
+    pub struct Response {
+        pub user: Option<user::Model>,
+    }
 }
 
 pub fn create_jwt(private_key: &Vec<u8>, user: &repo::user::Model) -> Result<String, Error> {
