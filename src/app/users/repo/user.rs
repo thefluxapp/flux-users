@@ -14,6 +14,26 @@ impl Model {
     pub fn name(&self) -> String {
         [self.first_name.clone(), self.last_name.clone()].join(" ")
     }
+
+    pub fn abbr(&self) -> String {
+        let mut abbr = String::from("");
+
+        if let Some(l) = self.first_name.chars().take(1).last() {
+            abbr.push(l);
+        }
+
+        if let Some(l) = self.last_name.chars().take(1).last() {
+            abbr.push(l);
+        }
+
+        abbr
+    }
+
+    pub fn color(&self) -> String {
+        random_color::RandomColor::new()
+            .seed(self.id.to_string())
+            .to_hsla_string()
+    }
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
