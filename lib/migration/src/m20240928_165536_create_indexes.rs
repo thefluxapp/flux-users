@@ -11,7 +11,7 @@ impl MigrationTrait for Migration {
         manager
             .create_index(
                 Index::create()
-                    .name("users_idx_user_id")
+                    .name("users_id_idx")
                     .table(Users::Table)
                     .col(Users::Id)
                     .to_owned(),
@@ -21,7 +21,7 @@ impl MigrationTrait for Migration {
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
-            .drop_index(Index::drop().name("users_idx_user_id").to_owned())
+            .drop_index(Index::drop().name("users_id_idx").to_owned())
             .await
     }
 }

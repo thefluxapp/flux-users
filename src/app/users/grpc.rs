@@ -68,6 +68,8 @@ impl Into<GetUsersResponse> for service::GetUsersResponse {
                     first_name: Some(user.first_name.clone()),
                     last_name: Some(user.last_name.clone()),
                     name: Some(user.name()),
+                    abbr: Some(user.abbr()),
+                    color: Some(user.color()),
                 })
                 .collect(),
         }
