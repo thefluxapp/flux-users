@@ -113,7 +113,7 @@ async fn me(AppState { db, .. }: &AppState, request: MeRequest) -> Result<MeResp
 }
 
 mod me {
-    use flux_auth_api::{MeRequest, MeResponse};
+    use flux_auth_api::{me_response::User, MeRequest, MeResponse};
     use uuid::Uuid;
     use validator::{Validate as _, ValidationErrors};
 
@@ -140,10 +140,14 @@ mod me {
             let user = self.user.ok_or(AppError::NotFound)?;
 
             Ok(MeResponse {
-                user_id: Some(user.id.into()),
-                name: Some(user.name()),
-                first_name: Some(user.first_name),
-                last_name: Some(user.last_name),
+                user: Some(User {
+                    user_id: Some(user.id.into()),
+                    first_name: Some(user.first_name.clone()),
+                    last_name: Some(user.last_name.clone()),
+                    name: Some(user.name()),
+                    abbr: Some(user.abbr()),
+                    color: Some(user.color()),
+                }),
             })
         }
     }
