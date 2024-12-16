@@ -11,6 +11,7 @@ impl From<AppError> for Status {
                 Bytes::new(),
                 MetadataMap::new(),
             ),
+            AppError::Json(error) => Self::internal(error.to_string()),
             AppError::Other(error) => Self::internal(error.to_string()),
             AppError::NotFound => Self::not_found("entity not found"),
         }
@@ -23,6 +24,8 @@ pub enum AppError {
     NotFound,
     #[error(transparent)]
     Validation(#[from] validator::ValidationErrors),
+    #[error(transparent)]
+    Json(#[from] serde_json::Error),
     #[error(transparent)]
     Other(#[from] anyhow::Error),
 }

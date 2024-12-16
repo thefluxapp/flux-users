@@ -4,10 +4,8 @@ use chrono::{Duration, Utc};
 use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
 use rand::RngCore as _;
 use sea_orm::{DbConn, Set, TransactionTrait as _};
-use serde::{Deserialize, Serialize};
 use url::Url;
 use uuid::Uuid;
-use validator::Validate;
 
 use crate::app::settings::AppSettings;
 
@@ -15,7 +13,6 @@ use super::{
     passkey::{
         CredentialCreationOptions, PublicKeyCredentialCreationOptions,
         PublicKeyCredentialParameters, PublicKeyCredentialRpEntity, PublicKeyCredentialUserEntity,
-        PublicKeyCredentialWithAttestation,
     },
     repo,
     settings::AuthSettings,
@@ -25,9 +22,9 @@ use super::{
 pub async fn join(
     db: &DbConn,
     settings: &AuthSettings,
-    request: JoinRequest,
-) -> Result<JoinResponse, Error> {
-    let email = request.email.to_lowercase();
+    req: join::Request,
+) -> Result<join::Response, Error> {
+    let email = req.email.to_lowercase();
     let user_id = Uuid::now_v7();
     let mut challenge = vec![0u8; 128];
     rand::thread_rng().fill_bytes(&mut challenge);
@@ -69,33 +66,40 @@ pub async fn join(
             })
             .await?;
 
-            JoinResponse::Creation(CredentialCreationOptions { public_key })
+            join::Response::Creation(CredentialCreationOptions { public_key })
         }
     };
 
     Ok(response)
 }
 
-#[derive(Deserialize, Validate)]
-pub struct JoinRequest {
-    #[validate(email)]
-    pub email: String,
-}
+pub mod join {
+    use serde::{Deserialize, Serialize};
+    use validator::Validate;
 
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-pub enum JoinResponse {
-    Creation(CredentialCreationOptions),
-    // Request(CredentialRequestOptions),
+    use crate::app::auth::passkey::CredentialCreationOptions;
+
+    #[derive(Deserialize, Validate)]
+    pub struct Request {
+        #[validate(email)]
+        pub email: String,
+    }
+
+    #[derive(Serialize)]
+    #[serde(rename_all = "camelCase")]
+    pub enum Response {
+        Creation(CredentialCreationOptions),
+        // Request(CredentialRequestOptions),
+    }
 }
 
 pub async fn complete(
     db: &DbConn,
     settings: &AppSettings,
     private_key: &Vec<u8>,
-    request: CompleteRequest,
-) -> Result<CompleteResponse, Error> {
-    let client_data = request.credential.response.client_data;
+    req: complete::Request,
+) -> Result<complete::Response, Error> {
+    let client_data = req.credential.response.client_data;
     dbg!(&client_data);
 
     validate_origin(&client_data.origin, &settings.auth.rp.id)?;
@@ -118,8 +122,8 @@ pub async fn complete(
         repo::user::Model {
             id: user_challenge.user_id,
             email,
-            first_name: request.first_name.clone(),
-            last_name: request.last_name.clone(),
+            first_name: req.first_name.clone(),
+            last_name: req.last_name.clone(),
             created_at: Utc::now().naive_utc(),
             updated_at: Utc::now().naive_utc(),
         },
@@ -129,10 +133,10 @@ pub async fn complete(
     repo::create_user_credential(
         &txn,
         repo::user_credential::Model {
-            id: request.credential.id,
+            id: req.credential.id,
             user_id: user.id,
-            public_key: request.credential.response.public_key,
-            public_key_algorithm: request.credential.response.public_key_algorithm,
+            public_key: req.credential.response.public_key,
+            public_key_algorithm: req.credential.response.public_key_algorithm,
             created_at: Utc::now().naive_utc(),
             updated_at: Utc::now().naive_utc(),
         },
@@ -143,22 +147,29 @@ pub async fn complete(
 
     txn.commit().await?;
 
-    println!("QQQ: {}", &request.first_name);
+    println!("QQQ: {}", &req.first_name);
     let jwt = create_jwt(&private_key, &user)?;
 
-    Ok(CompleteResponse { jwt })
+    Ok(complete::Response { jwt })
 }
 
-#[derive(Deserialize, Validate)]
-pub struct CompleteRequest {
-    pub first_name: String,
-    pub last_name: String,
-    pub credential: PublicKeyCredentialWithAttestation,
-}
+pub mod complete {
+    use serde::{Deserialize, Serialize};
+    use validator::Validate;
 
-#[derive(Serialize)]
-pub struct CompleteResponse {
-    pub jwt: String,
+    use crate::app::auth::passkey::PublicKeyCredentialWithAttestation;
+
+    #[derive(Deserialize, Validate)]
+    pub struct Request {
+        pub first_name: String,
+        pub last_name: String,
+        pub credential: PublicKeyCredentialWithAttestation,
+    }
+
+    #[derive(Serialize)]
+    pub struct Response {
+        pub jwt: String,
+    }
 }
 
 pub async fn me(db: &DbConn, request: me::Request) -> Result<me::Response, Error> {

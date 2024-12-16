@@ -1,11 +1,8 @@
-use anyhow::Error;
 use flux_auth_api::{
     auth_service_server::AuthService, CompleteRequest, CompleteResponse, JoinRequest, JoinResponse,
     MeRequest, MeResponse,
 };
-use serde_json::json;
 use tonic::{Request, Response, Status};
-use validator::Validate;
 
 use super::service;
 use crate::app::{error::AppError, state::AppState};
@@ -53,23 +50,34 @@ async fn join(
     Ok(response.into())
 }
 
-impl TryFrom<JoinRequest> for service::JoinRequest {
-    type Error = AppError;
+mod join {
+    use flux_auth_api::{JoinRequest, JoinResponse};
+    use serde_json::json;
+    use validator::Validate as _;
 
-    fn try_from(request: JoinRequest) -> Result<Self, Self::Error> {
-        let data = Self {
-            email: request.email().into(),
-        };
-        data.validate()?;
+    use crate::app::{
+        auth::service::join::{Request, Response},
+        error::AppError,
+    };
 
-        Ok(data)
+    impl TryFrom<JoinRequest> for Request {
+        type Error = AppError;
+
+        fn try_from(request: JoinRequest) -> Result<Self, Self::Error> {
+            let data = Self {
+                email: request.email().into(),
+            };
+            data.validate()?;
+
+            Ok(data)
+        }
     }
-}
 
-impl Into<JoinResponse> for service::JoinResponse {
-    fn into(self) -> JoinResponse {
-        JoinResponse {
-            response: Some(json!(self).to_string()),
+    impl From<Response> for JoinResponse {
+        fn from(res: Response) -> Self {
+            JoinResponse {
+                response: Some(json!(res).to_string()),
+            }
         }
     }
 }
@@ -87,21 +95,29 @@ async fn complete(
     Ok(response.into())
 }
 
-impl TryFrom<CompleteRequest> for service::CompleteRequest {
-    type Error = Error;
+mod complete {
+    use flux_auth_api::{CompleteRequest, CompleteResponse};
+    use validator::Validate as _;
 
-    fn try_from(request: CompleteRequest) -> Result<Self, Self::Error> {
-        let data: Self = serde_json::from_str(request.request())?;
-        data.validate()?;
+    use crate::app::{
+        auth::service::complete::{Request, Response},
+        error::AppError,
+    };
 
-        Ok(data)
+    impl TryFrom<CompleteRequest> for Request {
+        type Error = AppError;
+
+        fn try_from(request: CompleteRequest) -> Result<Self, Self::Error> {
+            let data: Self = serde_json::from_str(request.request())?;
+            data.validate()?;
+
+            Ok(data)
+        }
     }
-}
 
-impl Into<CompleteResponse> for service::CompleteResponse {
-    fn into(self) -> CompleteResponse {
-        CompleteResponse {
-            jwt: Some(self.jwt),
+    impl From<Response> for CompleteResponse {
+        fn from(res: Response) -> Self {
+            CompleteResponse { jwt: Some(res.jwt) }
         }
     }
 }
