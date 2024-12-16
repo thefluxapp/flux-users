@@ -84,6 +84,12 @@ mod join {
     #[cfg(test)]
     mod tests {
         use anyhow::Error;
+        use mry::ArgMatcher::Any;
+
+        use crate::app::{
+            auth::{grpc::join, service},
+            state::AppState,
+        };
 
         use super::*;
 
@@ -97,6 +103,22 @@ mod join {
             .try_into()?;
 
             assert_eq!(req.email, email);
+
+            Ok(())
+        }
+
+        #[tokio::test]
+        #[mry::lock(service::join)]
+        async fn test() -> Result<(), Error> {
+            let join_request = JoinRequest {
+                email: Some("email@theflux.app".into()),
+            };
+            let req: Request = join_request.clone().try_into()?;
+            service::mock_join(Any, Any, req).returns_once(Ok(Response::default()));
+
+            let res = join(&AppState::default(), join_request).await?;
+
+            assert!(res.response.is_some());
 
             Ok(())
         }

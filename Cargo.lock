@@ -230,6 +230,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "async-recursion"
+version = "1.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3b43422f69d8ff38f95f1b2bb76517c91589a924d1559a0e935d7c8ce0274c11"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.90",
+]
+
+[[package]]
 name = "async-std"
 version = "1.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -874,6 +885,7 @@ dependencies = [
  "flux-lib",
  "jsonwebtoken",
  "log",
+ "mry",
  "rand",
  "random_color",
  "sea-orm",
@@ -1693,6 +1705,29 @@ dependencies = [
  "libc",
  "wasi",
  "windows-sys 0.52.0",
+]
+
+[[package]]
+name = "mry"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4110e64c16d6d440c75c13689a6e880a279cc18b95afea6323ab3c7943b5f231"
+dependencies = [
+ "async-recursion",
+ "mry_macros",
+ "parking_lot",
+]
+
+[[package]]
+name = "mry_macros"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "930764a3ee975f862a5e3017e9bf69ac922a7af83a44042709f9ca749e27f85d"
+dependencies = [
+ "darling",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.90",
 ]
 
 [[package]]

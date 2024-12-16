@@ -19,6 +19,7 @@ use super::{
     Claims,
 };
 
+#[mry::mry]
 pub async fn join(
     db: &DbConn,
     settings: &AuthSettings,
@@ -79,7 +80,7 @@ pub mod join {
 
     use crate::app::auth::passkey::CredentialCreationOptions;
 
-    #[derive(Deserialize, Validate)]
+    #[derive(Deserialize, Validate, Clone, PartialEq)]
     pub struct Request {
         #[validate(email)]
         pub email: String,
@@ -90,6 +91,38 @@ pub mod join {
     pub enum Response {
         Creation(CredentialCreationOptions),
         // Request(CredentialRequestOptions),
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use uuid::Uuid;
+
+        use crate::app::auth::passkey::{
+            CredentialCreationOptions, PublicKeyCredentialCreationOptions,
+            PublicKeyCredentialRpEntity, PublicKeyCredentialUserEntity,
+        };
+
+        use super::Response;
+
+        impl Response {
+            pub fn default() -> Self {
+                Self::Creation(CredentialCreationOptions {
+                    public_key: PublicKeyCredentialCreationOptions {
+                        challenge: vec![],
+                        pub_key_cred_params: vec![],
+                        rp: PublicKeyCredentialRpEntity {
+                            id: Some(String::default()),
+                            name: String::default(),
+                        },
+                        user: PublicKeyCredentialUserEntity {
+                            id: Uuid::now_v7(),
+                            name: String::default(),
+                            display_name: String::default(),
+                        },
+                    },
+                })
+            }
+        }
     }
 }
 
