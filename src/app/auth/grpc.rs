@@ -80,6 +80,27 @@ mod join {
             }
         }
     }
+
+    #[cfg(test)]
+    mod tests {
+        use anyhow::Error;
+
+        use super::*;
+
+        #[test]
+        fn should_validate_email() -> Result<(), Error> {
+            let email = "email@theflux.app";
+
+            let req: Request = JoinRequest {
+                email: Some(email.into()),
+            }
+            .try_into()?;
+
+            assert_eq!(req.email, email);
+
+            Ok(())
+        }
+    }
 }
 
 async fn complete(
