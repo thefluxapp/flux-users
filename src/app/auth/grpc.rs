@@ -65,7 +65,7 @@ mod join {
 
         fn try_from(request: JoinRequest) -> Result<Self, Self::Error> {
             let data = Self {
-                email: request.email().into(),
+                email: request.email().trim().to_lowercase().into(),
             };
             data.validate()?;
 
@@ -133,7 +133,7 @@ async fn complete(
     }: &AppState,
     request: CompleteRequest,
 ) -> Result<CompleteResponse, AppError> {
-    let response = service::complete(db, settings, private_key, request.try_into()?).await?;
+    let response = service::complete(db, &settings.auth, private_key, request.try_into()?).await?;
 
     Ok(response.into())
 }

@@ -2,22 +2,10 @@ use anyhow::{bail, Error};
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
 use chrono::{Duration, Utc};
 use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
-use rand::RngCore as _;
 use sea_orm::{DbConn, Set, TransactionTrait as _};
 use url::Url;
-use uuid::Uuid;
 
-use crate::app::settings::AppSettings;
-
-use super::{
-    passkey::{
-        CredentialCreationOptions, PublicKeyCredentialCreationOptions,
-        PublicKeyCredentialParameters, PublicKeyCredentialRpEntity, PublicKeyCredentialUserEntity,
-    },
-    repo,
-    settings::AuthSettings,
-    Claims,
-};
+use super::{passkey::PublicKeyCredentialCreationOptions, repo, settings::AuthSettings, Claims};
 
 #[mry::mry]
 pub async fn join(
@@ -25,37 +13,10 @@ pub async fn join(
     settings: &AuthSettings,
     req: join::Request,
 ) -> Result<join::Response, Error> {
-    let email = req.email.to_lowercase();
-    let user_id = Uuid::now_v7();
-    let mut challenge = vec![0u8; 128];
-    rand::thread_rng().fill_bytes(&mut challenge);
-
-    let response = match repo::find_user_by_email_with_credentials(db, &email).await? {
+    let res = match repo::find_user_by_email_with_credentials(db, &req.email).await? {
         Some(_) => todo!(),
         None => {
-            let public_key = PublicKeyCredentialCreationOptions {
-                rp: PublicKeyCredentialRpEntity {
-                    id: Some(settings.rp.id.clone()),
-                    name: settings.rp.name.clone(),
-                },
-                user: PublicKeyCredentialUserEntity {
-                    id: user_id,
-                    name: email.clone(),
-                    display_name: email.clone(),
-                },
-                challenge,
-                // TODO: remove hardcode
-                pub_key_cred_params: vec![
-                    PublicKeyCredentialParameters {
-                        alg: -7,
-                        tp: "public-key".to_string(),
-                    },
-                    PublicKeyCredentialParameters {
-                        alg: -257,
-                        tp: "public-key".to_string(),
-                    },
-                ],
-            };
+            let public_key: PublicKeyCredentialCreationOptions = (req, settings).into();
 
             repo::create_user_challenge(db, {
                 repo::user_challenge::ActiveModel {
@@ -67,18 +28,27 @@ pub async fn join(
             })
             .await?;
 
-            join::Response::Creation(CredentialCreationOptions { public_key })
+            public_key.into()
         }
     };
 
-    Ok(response)
+    Ok(res)
 }
 
 pub mod join {
+    use rand::RngCore as _;
     use serde::{Deserialize, Serialize};
+    use uuid::Uuid;
     use validator::Validate;
 
-    use crate::app::auth::passkey::CredentialCreationOptions;
+    use crate::app::auth::{
+        passkey::{
+            CredentialCreationOptions, PublicKeyCredentialCreationOptions,
+            PublicKeyCredentialParameters, PublicKeyCredentialRpEntity,
+            PublicKeyCredentialUserEntity,
+        },
+        settings::AuthSettings,
+    };
 
     #[derive(Deserialize, Validate, Clone, PartialEq)]
     pub struct Request {
@@ -91,6 +61,43 @@ pub mod join {
     pub enum Response {
         Creation(CredentialCreationOptions),
         // Request(CredentialRequestOptions),
+    }
+
+    impl From<(Request, &AuthSettings)> for PublicKeyCredentialCreationOptions {
+        fn from((req, settings): (Request, &AuthSettings)) -> Self {
+            let user_id = Uuid::now_v7();
+            let mut challenge = vec![0u8; 128];
+            rand::thread_rng().fill_bytes(&mut challenge);
+
+            Self {
+                challenge,
+                pub_key_cred_params: vec![
+                    PublicKeyCredentialParameters {
+                        alg: -7,
+                        tp: "public-key".to_string(),
+                    },
+                    PublicKeyCredentialParameters {
+                        alg: -257,
+                        tp: "public-key".to_string(),
+                    },
+                ],
+                rp: PublicKeyCredentialRpEntity {
+                    id: Some(settings.rp.id.clone()),
+                    name: settings.rp.name.clone(),
+                },
+                user: PublicKeyCredentialUserEntity {
+                    id: user_id,
+                    name: req.email.clone(),
+                    display_name: req.email.clone(),
+                },
+            }
+        }
+    }
+
+    impl From<PublicKeyCredentialCreationOptions> for Response {
+        fn from(public_key: PublicKeyCredentialCreationOptions) -> Self {
+            Self::Creation(CredentialCreationOptions { public_key })
+        }
     }
 
     #[cfg(test)]
@@ -128,14 +135,13 @@ pub mod join {
 
 pub async fn complete(
     db: &DbConn,
-    settings: &AppSettings,
+    settings: &AuthSettings,
     private_key: &Vec<u8>,
     req: complete::Request,
 ) -> Result<complete::Response, Error> {
     let client_data = req.credential.response.client_data;
-    dbg!(&client_data);
 
-    validate_origin(&client_data.origin, &settings.auth.rp.id)?;
+    validate_origin(&client_data.origin, &settings.rp.id)?;
     validate_tp(&client_data.tp, "webauthn.create")?;
 
     let txn = db.begin().await?;
@@ -199,9 +205,57 @@ pub mod complete {
         pub credential: PublicKeyCredentialWithAttestation,
     }
 
-    #[derive(Serialize)]
+    #[derive(Serialize, Debug)]
     pub struct Response {
         pub jwt: String,
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use anyhow::Error;
+        use sea_orm::DatabaseConnection;
+
+        use crate::app::auth::{
+            passkey::{
+                AuthenticatorAttestationResponse, ClientData, PublicKeyCredentialWithAttestation,
+            },
+            service::{self, complete::Request},
+            settings::{AuthSettings, RPSettings},
+        };
+
+        #[tokio::test]
+        async fn example() -> Result<(), Error> {
+            let db = DatabaseConnection::default();
+            let req = Request {
+                first_name: "FIRST_NAME".into(),
+                last_name: "LAST_NAME".into(),
+                credential: PublicKeyCredentialWithAttestation {
+                    response: AuthenticatorAttestationResponse {
+                        client_data: ClientData {
+                            tp: String::default(),
+                            challenge: String::default(),
+                            origin: String::default(),
+                        },
+                        public_key: vec![],
+                        public_key_algorithm: 0,
+                    },
+                    id: "ID".into(),
+                },
+            };
+            let settings = AuthSettings {
+                rp: RPSettings {
+                    id: String::default(),
+                    name: String::default(),
+                },
+                private_key_file: String::default(),
+            };
+
+            let res = service::complete(&db, &settings, &vec![], req).await;
+
+            dbg!(&res);
+
+            Ok(())
+        }
     }
 }
 
