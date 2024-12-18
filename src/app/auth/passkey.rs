@@ -103,9 +103,19 @@ pub struct AuthenticatorAttestationResponse {
 #[derive(Deserialize, Debug, Serialize)]
 pub struct ClientData {
     #[serde(rename = "type")]
-    pub tp: String,
+    pub tp: ClientDataType,
     pub challenge: String,
     pub origin: String,
+}
+
+#[serde_as]
+#[derive(Deserialize, Debug, Serialize, PartialEq)]
+pub enum ClientDataType {
+    #[serde(rename = "webauthn.create")]
+    Create,
+
+    #[serde(rename = "webauthn.get")]
+    Get,
 }
 
 impl Into<ClientData> for Vec<u8> {

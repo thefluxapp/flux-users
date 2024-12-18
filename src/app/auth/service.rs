@@ -1,11 +1,16 @@
-use anyhow::{bail, Error};
+use anyhow::Error;
 use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine as _};
 use chrono::{Duration, Utc};
 use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
 use sea_orm::{DbConn, Set, TransactionTrait as _};
 use url::Url;
 
-use super::{passkey::PublicKeyCredentialCreationOptions, repo, settings::AuthSettings, Claims};
+use crate::app::auth::passkey::ClientDataType;
+
+use super::{
+    error::AuthError, passkey::PublicKeyCredentialCreationOptions, repo, settings::AuthSettings,
+    Claims,
+};
 
 #[mry::mry]
 pub async fn join(
@@ -22,7 +27,7 @@ pub async fn join(
                 repo::user_challenge::ActiveModel {
                     id: Set(URL_SAFE_NO_PAD.encode(public_key.challenge.clone())),
                     user_id: Set(public_key.user.id),
-                    user_name: Set(Some(public_key.user.name.clone())),
+                    user_name: Set(public_key.user.name.clone()),
                     created_at: Set(Utc::now().naive_utc()),
                 }
             })
@@ -143,25 +148,19 @@ pub async fn complete(
     let client_data = req.credential.response.client_data;
 
     validate_origin(&client_data.origin, &settings.rp.id)?;
-    validate_tp(&client_data.tp, "webauthn.create")?;
+    validate_tp(client_data.tp, ClientDataType::Create)?;
 
     let txn = db.begin().await?;
 
-    let user_challenge = match repo::find_user_challengle(&txn, &client_data.challenge).await? {
-        Some(user_challenge) => user_challenge,
-        None => bail!("user_challenge not found"),
-    };
-
-    let email = match user_challenge.user_name.clone() {
-        Some(email) => email,
-        None => bail!("user_challenge without email"),
-    };
+    let user_challenge = repo::find_user_challengle(&txn, &client_data.challenge)
+        .await?
+        .ok_or(AuthError::UserChallengeNotFound)?;
 
     let user = repo::create_user(
         &txn,
         repo::user::Model {
-            id: user_challenge.user_id,
-            email,
+            id: user_challenge.user_id.clone(),
+            email: user_challenge.user_name.clone(),
             first_name: req.first_name.clone(),
             last_name: req.last_name.clone(),
             created_at: Utc::now().naive_utc(),
@@ -187,10 +186,9 @@ pub async fn complete(
 
     txn.commit().await?;
 
-    println!("QQQ: {}", &req.first_name);
-    let jwt = create_jwt(&private_key, &user)?;
-
-    Ok(complete::Response { jwt })
+    Ok(complete::Response {
+        jwt: create_jwt(&private_key, &user)?,
+    })
 }
 
 pub mod complete {
@@ -218,7 +216,8 @@ pub mod complete {
 
         use crate::app::auth::{
             passkey::{
-                AuthenticatorAttestationResponse, ClientData, PublicKeyCredentialWithAttestation,
+                AuthenticatorAttestationResponse, ClientData, ClientDataType,
+                PublicKeyCredentialWithAttestation,
             },
             service::{self, complete::Request},
             settings::{AuthSettings, RPSettings},
@@ -233,7 +232,7 @@ pub mod complete {
                 credential: PublicKeyCredentialWithAttestation {
                     response: AuthenticatorAttestationResponse {
                         client_data: ClientData {
-                            tp: String::default(),
+                            tp: ClientDataType::Create,
                             challenge: String::default(),
                             origin: String::default(),
                         },
@@ -299,28 +298,21 @@ pub fn create_jwt(private_key: &Vec<u8>, user: &repo::user::Model) -> Result<Str
     Ok(jwt)
 }
 
-fn validate_origin(origin: &str, expected: &str) -> Result<(), Error> {
-    // TODO: rewrite it!
+fn validate_origin(origin: &str, expected: &str) -> Result<(), AuthError> {
+    let url = Url::parse(origin).map_err(AuthError::UnparsedRpId)?;
+    let host = url.host().ok_or(AuthError::InvalidRpId)?;
 
-    match Url::parse(&origin) {
-        Ok(url) => match url.host() {
-            Some(host) => {
-                if host.to_string() == expected {
-                    Ok(())
-                } else {
-                    bail!("ORIGIN")
-                }
-            }
-            None => bail!("ORIGIN"),
-        },
-        Err(_) => bail!("ORIGIN"),
-    }
+    if host.to_string() != expected {
+        return Err(AuthError::RpIdMissmatch);
+    };
+
+    Ok(())
 }
 
-fn validate_tp(tp: &str, expected: &str) -> Result<(), Error> {
+fn validate_tp(tp: ClientDataType, expected: ClientDataType) -> Result<(), AuthError> {
     if tp != expected {
-        bail!("TP")
-    } else {
-        Ok(())
+        return Err(AuthError::InvalidClientDataType);
     }
+
+    Ok(())
 }
