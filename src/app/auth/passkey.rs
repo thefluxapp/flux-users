@@ -50,9 +50,15 @@ pub struct PublicKeyCredentialCreationOptions {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PublicKeyCredentialParameters {
-    pub alg: i16,
+    pub alg: i64,
     #[serde(rename = "type")]
-    pub tp: String,
+    pub tp: PublicKeyCredentialType,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum PublicKeyCredentialType {
+    PublicKey,
 }
 
 #[derive(Serialize)]

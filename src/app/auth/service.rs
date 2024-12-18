@@ -36,6 +36,7 @@ pub async fn join(
 }
 
 pub mod join {
+    use coset::iana::{self, EnumI64};
     use rand::RngCore as _;
     use serde::{Deserialize, Serialize};
     use uuid::Uuid;
@@ -44,7 +45,7 @@ pub mod join {
     use crate::app::auth::{
         passkey::{
             CredentialCreationOptions, PublicKeyCredentialCreationOptions,
-            PublicKeyCredentialParameters, PublicKeyCredentialRpEntity,
+            PublicKeyCredentialParameters, PublicKeyCredentialRpEntity, PublicKeyCredentialType,
             PublicKeyCredentialUserEntity,
         },
         settings::AuthSettings,
@@ -73,12 +74,12 @@ pub mod join {
                 challenge,
                 pub_key_cred_params: vec![
                     PublicKeyCredentialParameters {
-                        alg: -7,
-                        tp: "public-key".to_string(),
+                        alg: iana::Algorithm::RS256.to_i64(),
+                        tp: PublicKeyCredentialType::PublicKey,
                     },
                     PublicKeyCredentialParameters {
-                        alg: -257,
-                        tp: "public-key".to_string(),
+                        alg: iana::Algorithm::ES256.to_i64(),
+                        tp: PublicKeyCredentialType::PublicKey,
                     },
                 ],
                 rp: PublicKeyCredentialRpEntity {
