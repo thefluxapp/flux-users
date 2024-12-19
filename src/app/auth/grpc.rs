@@ -1,6 +1,6 @@
 use flux_auth_api::{
     auth_service_server::AuthService, CompleteRequest, CompleteResponse, JoinRequest, JoinResponse,
-    MeRequest, MeResponse,
+    LoginRequest, LoginResponse, MeRequest, MeResponse,
 };
 use tonic::{Request, Response, Status};
 
@@ -19,8 +19,14 @@ impl GrpcAuthService {
 
 #[tonic::async_trait]
 impl AuthService for GrpcAuthService {
-    async fn join(&self, request: Request<JoinRequest>) -> Result<Response<JoinResponse>, Status> {
-        let response = join(&self.state, request.into_inner()).await?;
+    async fn join(&self, req: Request<JoinRequest>) -> Result<Response<JoinResponse>, Status> {
+        let res = join(&self.state, req.into_inner()).await?;
+
+        Ok(Response::new(res))
+    }
+
+    async fn login(&self, req: Request<LoginRequest>) -> Result<Response<LoginResponse>, Status> {
+        let response = login(&self.state, req.into_inner()).await?;
 
         Ok(Response::new(response))
     }
@@ -121,6 +127,42 @@ mod join {
             assert!(res.response.is_some());
 
             Ok(())
+        }
+    }
+}
+
+async fn login(
+    AppState { settings, db, .. }: &AppState,
+    req: LoginRequest,
+) -> Result<LoginResponse, AppError> {
+    Ok(LoginResponse {
+        jwt: Some("QQ".into()),
+    })
+}
+
+mod login {
+    use flux_auth_api::{LoginRequest, LoginResponse};
+    use validator::Validate as _;
+
+    use crate::app::{
+        auth::service::login::{Request, Response},
+        error::AppError,
+    };
+
+    impl TryFrom<LoginRequest> for Request {
+        type Error = AppError;
+
+        fn try_from(req: LoginRequest) -> Result<Self, Self::Error> {
+            let data: Self = serde_json::from_str(req.request())?;
+            data.validate()?;
+
+            Ok(data)
+        }
+    }
+
+    impl From<Response> for LoginResponse {
+        fn from(res: Response) -> Self {
+            Self { jwt: Some(res.jwt) }
         }
     }
 }

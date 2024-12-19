@@ -8,7 +8,10 @@ use url::Url;
 use crate::app::auth::passkey::ClientDataType;
 
 use super::{
-    error::AuthError, passkey::PublicKeyCredentialCreationOptions, repo, settings::AuthSettings,
+    error::AuthError,
+    passkey::{PublicKeyCredentialCreationOptions, PublicKeyCredentialRequestOptions},
+    repo,
+    settings::AuthSettings,
     Claims,
 };
 
@@ -19,7 +22,12 @@ pub async fn join(
     req: join::Request,
 ) -> Result<join::Response, Error> {
     let res = match repo::find_user_by_email_with_credentials(db, &req.email).await? {
-        Some(_) => todo!(),
+        Some(user_with_credentials) => {
+            let public_key: PublicKeyCredentialRequestOptions =
+                (user_with_credentials, settings).into();
+
+            public_key.into()
+        }
         None => {
             let public_key: PublicKeyCredentialCreationOptions = (req, settings).into();
 
@@ -49,10 +57,12 @@ pub mod join {
 
     use crate::app::auth::{
         passkey::{
-            CredentialCreationOptions, PublicKeyCredentialCreationOptions,
-            PublicKeyCredentialParameters, PublicKeyCredentialRpEntity, PublicKeyCredentialType,
-            PublicKeyCredentialUserEntity,
+            CredentialCreationOptions, CredentialRequestOptions,
+            PublicKeyCredentialCreationOptions, PublicKeyCredentialDescriptor,
+            PublicKeyCredentialParameters, PublicKeyCredentialRequestOptions,
+            PublicKeyCredentialRpEntity, PublicKeyCredentialType, PublicKeyCredentialUserEntity,
         },
+        repo,
         settings::AuthSettings,
     };
 
@@ -66,7 +76,38 @@ pub mod join {
     #[serde(rename_all = "camelCase")]
     pub enum Response {
         Creation(CredentialCreationOptions),
-        // Request(CredentialRequestOptions),
+        Request(CredentialRequestOptions),
+    }
+
+    impl
+        From<(
+            (repo::user::Model, Vec<repo::user_credential::Model>),
+            &AuthSettings,
+        )> for PublicKeyCredentialRequestOptions
+    {
+        fn from(
+            ((_, user_credentials), settings): (
+                (repo::user::Model, Vec<repo::user_credential::Model>),
+                &AuthSettings,
+            ),
+        ) -> Self {
+            let mut challenge = vec![0u8; 128];
+            rand::thread_rng().fill_bytes(&mut challenge);
+
+            Self {
+                challenge,
+                rp_id: Some(settings.rp.id.clone()),
+                allow_credentials: user_credentials
+                    .into_iter()
+                    .map(|it| PublicKeyCredentialDescriptor {
+                        id: it.id,
+                        tp: PublicKeyCredentialType::PublicKey,
+                        transports: vec!["internal".to_string(), "hybrid".to_string()],
+                    })
+                    .collect(),
+                user_verification: "preferred".into(),
+            }
+        }
     }
 
     impl From<(Request, &AuthSettings)> for PublicKeyCredentialCreationOptions {
@@ -86,6 +127,10 @@ pub mod join {
                         alg: iana::Algorithm::ES256.to_i64(),
                         tp: PublicKeyCredentialType::PublicKey,
                     },
+                    PublicKeyCredentialParameters {
+                        alg: iana::Algorithm::EdDSA.to_i64(),
+                        tp: PublicKeyCredentialType::PublicKey,
+                    },
                 ],
                 rp: PublicKeyCredentialRpEntity {
                     id: Some(settings.rp.id.clone()),
@@ -103,6 +148,12 @@ pub mod join {
     impl From<PublicKeyCredentialCreationOptions> for Response {
         fn from(public_key: PublicKeyCredentialCreationOptions) -> Self {
             Self::Creation(CredentialCreationOptions { public_key })
+        }
+    }
+
+    impl From<PublicKeyCredentialRequestOptions> for Response {
+        fn from(public_key: PublicKeyCredentialRequestOptions) -> Self {
+            Self::Request(CredentialRequestOptions { public_key })
         }
     }
 
@@ -139,12 +190,27 @@ pub mod join {
     }
 }
 
+pub mod login {
+    use serde::{Deserialize, Serialize};
+    use validator::Validate;
+
+    #[derive(Deserialize, Validate, Clone, PartialEq)]
+    pub struct Request {}
+
+    #[derive(Debug, Serialize)]
+    pub struct Response {
+        pub jwt: String,
+    }
+}
+
 pub async fn complete(
     db: &DbConn,
     settings: &AuthSettings,
     private_key: &Vec<u8>,
     req: complete::Request,
 ) -> Result<complete::Response, Error> {
+    dbg!(&req);
+
     let client_data = req.credential.response.client_data;
 
     validate_origin(&client_data.origin, &settings.rp.id)?;
@@ -197,7 +263,7 @@ pub mod complete {
 
     use crate::app::auth::passkey::PublicKeyCredentialWithAttestation;
 
-    #[derive(Deserialize, Validate)]
+    #[derive(Debug, Deserialize, Validate)]
     pub struct Request {
         pub first_name: String,
         pub last_name: String,

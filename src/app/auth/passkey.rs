@@ -18,6 +18,7 @@ pub struct PublicKeyCredentialRequestOptions {
     pub challenge: Vec<u8>,
     pub rp_id: Option<String>,
     pub allow_credentials: Vec<PublicKeyCredentialDescriptor>,
+    pub user_verification: String,
 }
 
 #[serde_as]
@@ -26,7 +27,7 @@ pub struct PublicKeyCredentialRequestOptions {
 pub struct PublicKeyCredentialDescriptor {
     pub id: String,
     #[serde(rename = "type")]
-    pub tp: String,
+    pub tp: PublicKeyCredentialType,
     pub transports: Vec<String>,
 }
 
