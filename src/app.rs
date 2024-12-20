@@ -1,5 +1,6 @@
 use anyhow::Error;
 use axum::{routing::get, Router};
+use log::info;
 use settings::AppSettings;
 use state::AppState;
 use tonic::service::Routes;
@@ -42,6 +43,7 @@ async fn http(state: &AppState) -> Result<(), Error> {
 
     let listener = tokio::net::TcpListener::bind(&state.settings.http.endpoint).await?;
 
+    info!("app: started");
     axum::serve(listener, router).await?;
 
     Ok(())

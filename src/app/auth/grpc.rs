@@ -1,11 +1,8 @@
-use anyhow::Error;
 use flux_auth_api::{
     auth_service_server::AuthService, CompleteRequest, CompleteResponse, JoinRequest, JoinResponse,
-    MeRequest, MeResponse,
+    LoginRequest, LoginResponse, MeRequest, MeResponse,
 };
-use serde_json::json;
 use tonic::{Request, Response, Status};
-use validator::Validate;
 
 use super::service;
 use crate::app::{error::AppError, state::AppState};
@@ -22,8 +19,14 @@ impl GrpcAuthService {
 
 #[tonic::async_trait]
 impl AuthService for GrpcAuthService {
-    async fn join(&self, request: Request<JoinRequest>) -> Result<Response<JoinResponse>, Status> {
-        let response = join(&self.state, request.into_inner()).await?;
+    async fn join(&self, req: Request<JoinRequest>) -> Result<Response<JoinResponse>, Status> {
+        let res = join(&self.state, req.into_inner()).await?;
+
+        Ok(Response::new(res))
+    }
+
+    async fn login(&self, req: Request<LoginRequest>) -> Result<Response<LoginResponse>, Status> {
+        let response = login(&self.state, req.into_inner()).await?;
 
         Ok(Response::new(response))
     }
@@ -53,23 +56,118 @@ async fn join(
     Ok(response.into())
 }
 
-impl TryFrom<JoinRequest> for service::JoinRequest {
-    type Error = AppError;
+mod join {
+    use flux_auth_api::{JoinRequest, JoinResponse};
+    use serde_json::json;
+    use validator::Validate as _;
 
-    fn try_from(request: JoinRequest) -> Result<Self, Self::Error> {
-        let data = Self {
-            email: request.email().into(),
+    use crate::app::{
+        auth::service::join::{Request, Response},
+        error::AppError,
+    };
+
+    impl TryFrom<JoinRequest> for Request {
+        type Error = AppError;
+
+        fn try_from(request: JoinRequest) -> Result<Self, Self::Error> {
+            let data = Self {
+                email: request.email().trim().to_lowercase().into(),
+            };
+            data.validate()?;
+
+            Ok(data)
+        }
+    }
+
+    impl From<Response> for JoinResponse {
+        fn from(res: Response) -> Self {
+            JoinResponse {
+                response: Some(json!(res).to_string()),
+            }
+        }
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use anyhow::Error;
+        use mry::ArgMatcher::Any;
+
+        use crate::app::{
+            auth::{grpc::join, service},
+            state::AppState,
         };
-        data.validate()?;
 
-        Ok(data)
+        use super::*;
+
+        #[test]
+        fn should_validate_email() -> Result<(), Error> {
+            let email = "email@theflux.app";
+
+            let req: Request = JoinRequest {
+                email: Some(email.into()),
+            }
+            .try_into()?;
+
+            assert_eq!(req.email, email);
+
+            Ok(())
+        }
+
+        #[tokio::test]
+        #[mry::lock(service::join)]
+        async fn test() -> Result<(), Error> {
+            let join_request = JoinRequest {
+                email: Some("email@theflux.app".into()),
+            };
+            let req: Request = join_request.clone().try_into()?;
+            service::mock_join(Any, Any, req).returns_once(Ok(Response::default()));
+
+            let res = join(&AppState::default(), join_request).await?;
+
+            assert!(res.response.is_some());
+
+            Ok(())
+        }
     }
 }
 
-impl Into<JoinResponse> for service::JoinResponse {
-    fn into(self) -> JoinResponse {
-        JoinResponse {
-            response: Some(json!(self).to_string()),
+async fn login(
+    AppState {
+        settings,
+        db,
+        private_key,
+        ..
+    }: &AppState,
+    req: LoginRequest,
+) -> Result<LoginResponse, AppError> {
+    let res = service::login(db, &settings.auth, private_key, req.try_into()?).await?;
+
+    Ok(res.into())
+}
+
+mod login {
+    use flux_auth_api::{LoginRequest, LoginResponse};
+    use validator::Validate as _;
+
+    use crate::app::{
+        auth::service::login::{Request, Response},
+        error::AppError,
+    };
+
+    impl TryFrom<LoginRequest> for Request {
+        type Error = AppError;
+
+        fn try_from(req: LoginRequest) -> Result<Self, Self::Error> {
+            let data: Self = serde_json::from_str(req.request())?;
+            data.validate()?;
+
+            Ok(data)
+        }
+    }
+
+    impl From<Response> for LoginResponse {
+        fn from(res: Response) -> Self {
+            Self { jwt: Some(res.jwt) }
         }
     }
 }
@@ -82,26 +180,34 @@ async fn complete(
     }: &AppState,
     request: CompleteRequest,
 ) -> Result<CompleteResponse, AppError> {
-    let response = service::complete(db, settings, private_key, request.try_into()?).await?;
+    let response = service::complete(db, &settings.auth, private_key, request.try_into()?).await?;
 
     Ok(response.into())
 }
 
-impl TryFrom<CompleteRequest> for service::CompleteRequest {
-    type Error = Error;
+mod complete {
+    use flux_auth_api::{CompleteRequest, CompleteResponse};
+    use validator::Validate as _;
 
-    fn try_from(request: CompleteRequest) -> Result<Self, Self::Error> {
-        let data: Self = serde_json::from_str(request.request())?;
-        data.validate()?;
+    use crate::app::{
+        auth::service::complete::{Request, Response},
+        error::AppError,
+    };
 
-        Ok(data)
+    impl TryFrom<CompleteRequest> for Request {
+        type Error = AppError;
+
+        fn try_from(request: CompleteRequest) -> Result<Self, Self::Error> {
+            let data: Self = serde_json::from_str(request.request())?;
+            data.validate()?;
+
+            Ok(data)
+        }
     }
-}
 
-impl Into<CompleteResponse> for service::CompleteResponse {
-    fn into(self) -> CompleteResponse {
-        CompleteResponse {
-            jwt: Some(self.jwt),
+    impl From<Response> for CompleteResponse {
+        fn from(res: Response) -> Self {
+            CompleteResponse { jwt: Some(res.jwt) }
         }
     }
 }
@@ -113,7 +219,7 @@ async fn me(AppState { db, .. }: &AppState, request: MeRequest) -> Result<MeResp
 }
 
 mod me {
-    use flux_auth_api::{MeRequest, MeResponse};
+    use flux_auth_api::{me_response::User, MeRequest, MeResponse};
     use uuid::Uuid;
     use validator::{Validate as _, ValidationErrors};
 
@@ -140,10 +246,14 @@ mod me {
             let user = self.user.ok_or(AppError::NotFound)?;
 
             Ok(MeResponse {
-                user_id: Some(user.id.into()),
-                name: Some(user.name()),
-                first_name: Some(user.first_name),
-                last_name: Some(user.last_name),
+                user: Some(User {
+                    user_id: Some(user.id.into()),
+                    first_name: Some(user.first_name.clone()),
+                    last_name: Some(user.last_name.clone()),
+                    name: Some(user.name()),
+                    abbr: Some(user.abbr()),
+                    color: Some(user.color()),
+                }),
             })
         }
     }

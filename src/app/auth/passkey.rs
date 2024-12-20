@@ -18,6 +18,7 @@ pub struct PublicKeyCredentialRequestOptions {
     pub challenge: Vec<u8>,
     pub rp_id: Option<String>,
     pub allow_credentials: Vec<PublicKeyCredentialDescriptor>,
+    pub user_verification: String,
 }
 
 #[serde_as]
@@ -26,7 +27,7 @@ pub struct PublicKeyCredentialRequestOptions {
 pub struct PublicKeyCredentialDescriptor {
     pub id: String,
     #[serde(rename = "type")]
-    pub tp: String,
+    pub tp: PublicKeyCredentialType,
     pub transports: Vec<String>,
 }
 
@@ -50,9 +51,15 @@ pub struct PublicKeyCredentialCreationOptions {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PublicKeyCredentialParameters {
-    pub alg: i16,
+    pub alg: i64,
     #[serde(rename = "type")]
-    pub tp: String,
+    pub tp: PublicKeyCredentialType,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum PublicKeyCredentialType {
+    PublicKey,
 }
 
 #[derive(Serialize)]
@@ -97,13 +104,51 @@ pub struct AuthenticatorAttestationResponse {
 #[derive(Deserialize, Debug, Serialize)]
 pub struct ClientData {
     #[serde(rename = "type")]
-    pub tp: String,
+    pub tp: ClientDataType,
     pub challenge: String,
     pub origin: String,
+}
+
+#[serde_as]
+#[derive(Deserialize, Debug, Serialize, PartialEq)]
+pub enum ClientDataType {
+    #[serde(rename = "webauthn.create")]
+    Create,
+
+    #[serde(rename = "webauthn.get")]
+    Get,
 }
 
 impl Into<ClientData> for Vec<u8> {
     fn into(self) -> ClientData {
         serde_json::from_slice::<ClientData>(&self).unwrap()
     }
+}
+
+#[serde_as]
+#[derive(Deserialize, Debug)]
+pub struct PublicKeyCredentialWithAssertion {
+    pub response: AuthenticatorAssertionResponse,
+    pub id: String,
+}
+
+// #[serde_as]
+// #[derive(Deserialize, Debug)]
+// pub struct AuthenticatorAssertionResponse {
+//     #[serde(rename = "clientDataJSON")]
+//     #[serde_as(as = "Base64<UrlSafe, Unpadded>")]
+//     pub client_data: ClientData,
+// }
+
+#[serde_as]
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthenticatorAssertionResponse {
+    #[serde(rename = "clientDataJSON")]
+    #[serde_as(as = "Base64<UrlSafe, Unpadded>")]
+    pub client_data_json: Vec<u8>,
+    #[serde_as(as = "Base64<UrlSafe, Unpadded>")]
+    pub signature: Vec<u8>,
+    #[serde_as(as = "Base64<UrlSafe, Unpadded>")]
+    pub authenticator_data: Vec<u8>,
 }

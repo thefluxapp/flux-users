@@ -2,6 +2,8 @@ use axum::body::Bytes;
 use thiserror::Error;
 use tonic::{metadata::MetadataMap, Code, Status};
 
+use super::auth;
+
 impl From<AppError> for Status {
     fn from(error: AppError) -> Self {
         match error {
@@ -11,8 +13,11 @@ impl From<AppError> for Status {
                 Bytes::new(),
                 MetadataMap::new(),
             ),
+            AppError::Json(error) => Self::internal(error.to_string()),
+            AppError::DB(error) => Self::internal(error.to_string()),
             AppError::Other(error) => Self::internal(error.to_string()),
             AppError::NotFound => Self::not_found("entity not found"),
+            AppError::Auth(error) => Self::internal(error.to_string()),
         }
     }
 }
@@ -23,6 +28,12 @@ pub enum AppError {
     NotFound,
     #[error(transparent)]
     Validation(#[from] validator::ValidationErrors),
+    #[error(transparent)]
+    Json(#[from] serde_json::Error),
+    #[error(transparent)]
+    Auth(#[from] auth::error::AuthError),
+    #[error(transparent)]
+    DB(#[from] sea_orm::DbErr),
     #[error(transparent)]
     Other(#[from] anyhow::Error),
 }

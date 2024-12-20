@@ -5,11 +5,12 @@ use uuid::Uuid;
 
 use super::state::AppState;
 
+pub(super) mod error;
 mod grpc;
 mod passkey;
 mod repo;
 mod service;
-pub(crate) mod settings;
+pub(super) mod settings;
 
 pub fn auth_service(state: AppState) -> AuthServiceServer<GrpcAuthService> {
     AuthServiceServer::new(GrpcAuthService::new(state))

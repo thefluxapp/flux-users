@@ -1,7 +1,6 @@
-use anyhow::Error;
 use sea_orm::{
-    ActiveModelTrait, ColumnTrait, ConnectionTrait, EntityTrait, IntoActiveModel as _, ModelTrait,
-    QueryFilter, QuerySelect as _,
+    ActiveModelTrait, ColumnTrait, ConnectionTrait, DbErr, EntityTrait, IntoActiveModel as _,
+    ModelTrait, QueryFilter, QuerySelect as _,
 };
 use uuid::Uuid;
 
@@ -12,14 +11,14 @@ pub mod user_credential;
 pub async fn find_user_by_id<T: ConnectionTrait>(
     db: &T,
     id: Uuid,
-) -> Result<Option<user::Model>, Error> {
+) -> Result<Option<user::Model>, DbErr> {
     Ok(user::Entity::find_by_id(id).one(db).await?)
 }
 
 pub async fn find_user_by_email_with_credentials<T: ConnectionTrait>(
     db: &T,
     email: &String,
-) -> Result<Option<(user::Model, Vec<user_credential::Model>)>, Error> {
+) -> Result<Option<(user::Model, Vec<user_credential::Model>)>, DbErr> {
     match user::Entity::find()
         .filter(user::Column::Email.eq(email))
         .one(db)
@@ -37,26 +36,34 @@ pub async fn find_user_by_email_with_credentials<T: ConnectionTrait>(
 pub async fn create_user_challenge<T: ConnectionTrait>(
     db: &T,
     model: user_challenge::ActiveModel,
-) -> Result<user_challenge::Model, Error> {
+) -> Result<user_challenge::Model, DbErr> {
     let user_challenge = model.insert(db).await?;
 
     Ok(user_challenge)
 }
 
-pub async fn find_user_challengle<T: ConnectionTrait>(
+pub async fn find_user_challengle_with_lock<T: ConnectionTrait>(
     db: &T,
     id: &String,
-) -> Result<Option<user_challenge::Model>, Error> {
+) -> Result<Option<user_challenge::Model>, DbErr> {
     Ok(user_challenge::Entity::find_by_id(id)
+        // .filter(user_challenge::Column::UserId.eq(user_id))
         .lock_exclusive()
         .one(db)
         .await?)
 }
 
+pub async fn find_user_credential<T: ConnectionTrait>(
+    db: &T,
+    id: &String,
+) -> Result<Option<user_credential::Model>, DbErr> {
+    Ok(user_credential::Entity::find_by_id(id).one(db).await?)
+}
+
 pub async fn create_user<T: ConnectionTrait>(
     db: &T,
     model: user::Model,
-) -> Result<user::Model, Error> {
+) -> Result<user::Model, DbErr> {
     let user = model.into_active_model().insert(db).await?;
 
     Ok(user)
@@ -65,7 +72,7 @@ pub async fn create_user<T: ConnectionTrait>(
 pub async fn create_user_credential<T: ConnectionTrait>(
     db: &T,
     model: user_credential::Model,
-) -> Result<user_credential::Model, Error> {
+) -> Result<user_credential::Model, DbErr> {
     let user = model.into_active_model().insert(db).await?;
 
     Ok(user)
@@ -74,7 +81,7 @@ pub async fn create_user_credential<T: ConnectionTrait>(
 pub async fn delete_user_challengle<T: ConnectionTrait>(
     db: &T,
     model: user_challenge::Model,
-) -> Result<(), Error> {
+) -> Result<(), DbErr> {
     model.delete(db).await?;
 
     Ok(())
