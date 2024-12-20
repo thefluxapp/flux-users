@@ -1031,7 +1031,7 @@ dependencies = [
 [[package]]
 name = "flux-lib"
 version = "0.1.0"
-source = "git+https://github.com/thefluxapp/flux-lib.git?branch=dev#064947f487dddd6bebe6fde23a1f21992c7ea8a3"
+source = "git+https://github.com/thefluxapp/flux-lib.git#42afa660f25f41a67070de8ed5e7c4fc262ec9dd"
 dependencies = [
  "anyhow",
  "tracing",
