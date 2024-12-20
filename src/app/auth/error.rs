@@ -12,4 +12,8 @@ pub enum AuthError {
     InvalidRpId,
     #[error("USER_CHALLENGE_NOT_FOUND")]
     UserChallengeNotFound,
+    #[error("USER_CREDENTIAL_NOT_FOUND")]
+    UserCredentialNotFound,
+    #[error("USER_NOT_FOUND")]
+    UserNotFound,
 }

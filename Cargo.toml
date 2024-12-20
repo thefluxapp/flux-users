@@ -42,4 +42,8 @@ serde_json = "1.0.133"
 serde_with = { version = "3.11.0", features = ["base64"] }
 
 mry = "0.10.0"
+
 coset = "0.3.8"
+sha2 = "0.10.8"
+p256 = "0.13.2"
+ecdsa = { version = "0.16.9", features = ["der"] }

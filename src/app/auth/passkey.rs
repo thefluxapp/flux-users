@@ -124,3 +124,31 @@ impl Into<ClientData> for Vec<u8> {
         serde_json::from_slice::<ClientData>(&self).unwrap()
     }
 }
+
+#[serde_as]
+#[derive(Deserialize, Debug)]
+pub struct PublicKeyCredentialWithAssertion {
+    pub response: AuthenticatorAssertionResponse,
+    pub id: String,
+}
+
+// #[serde_as]
+// #[derive(Deserialize, Debug)]
+// pub struct AuthenticatorAssertionResponse {
+//     #[serde(rename = "clientDataJSON")]
+//     #[serde_as(as = "Base64<UrlSafe, Unpadded>")]
+//     pub client_data: ClientData,
+// }
+
+#[serde_as]
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct AuthenticatorAssertionResponse {
+    #[serde(rename = "clientDataJSON")]
+    #[serde_as(as = "Base64<UrlSafe, Unpadded>")]
+    pub client_data_json: Vec<u8>,
+    #[serde_as(as = "Base64<UrlSafe, Unpadded>")]
+    pub signature: Vec<u8>,
+    #[serde_as(as = "Base64<UrlSafe, Unpadded>")]
+    pub authenticator_data: Vec<u8>,
+}

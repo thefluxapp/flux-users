@@ -132,12 +132,17 @@ mod join {
 }
 
 async fn login(
-    AppState { settings, db, .. }: &AppState,
+    AppState {
+        settings,
+        db,
+        private_key,
+        ..
+    }: &AppState,
     req: LoginRequest,
 ) -> Result<LoginResponse, AppError> {
-    Ok(LoginResponse {
-        jwt: Some("QQ".into()),
-    })
+    let res = service::login(db, &settings.auth, private_key, req.try_into()?).await?;
+
+    Ok(res.into())
 }
 
 mod login {

@@ -42,14 +42,22 @@ pub async fn create_user_challenge<T: ConnectionTrait>(
     Ok(user_challenge)
 }
 
-pub async fn find_user_challengle<T: ConnectionTrait>(
+pub async fn find_user_challengle_with_lock<T: ConnectionTrait>(
     db: &T,
     id: &String,
 ) -> Result<Option<user_challenge::Model>, DbErr> {
     Ok(user_challenge::Entity::find_by_id(id)
+        // .filter(user_challenge::Column::UserId.eq(user_id))
         .lock_exclusive()
         .one(db)
         .await?)
+}
+
+pub async fn find_user_credential<T: ConnectionTrait>(
+    db: &T,
+    id: &String,
+) -> Result<Option<user_credential::Model>, DbErr> {
+    Ok(user_credential::Entity::find_by_id(id).one(db).await?)
 }
 
 pub async fn create_user<T: ConnectionTrait>(

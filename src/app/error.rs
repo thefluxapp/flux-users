@@ -14,6 +14,7 @@ impl From<AppError> for Status {
                 MetadataMap::new(),
             ),
             AppError::Json(error) => Self::internal(error.to_string()),
+            AppError::DB(error) => Self::internal(error.to_string()),
             AppError::Other(error) => Self::internal(error.to_string()),
             AppError::NotFound => Self::not_found("entity not found"),
             AppError::Auth(error) => Self::internal(error.to_string()),
@@ -31,6 +32,8 @@ pub enum AppError {
     Json(#[from] serde_json::Error),
     #[error(transparent)]
     Auth(#[from] auth::error::AuthError),
+    #[error(transparent)]
+    DB(#[from] sea_orm::DbErr),
     #[error(transparent)]
     Other(#[from] anyhow::Error),
 }

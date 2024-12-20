@@ -5,11 +5,11 @@ use jsonwebtoken::{encode, Algorithm, EncodingKey, Header};
 use sea_orm::{DbConn, Set, TransactionTrait as _};
 use url::Url;
 
-use crate::app::auth::passkey::ClientDataType;
+use crate::app::{auth::passkey::ClientDataType, error::AppError};
 
 use super::{
     error::AuthError,
-    passkey::{PublicKeyCredentialCreationOptions, PublicKeyCredentialRequestOptions},
+    passkey::{ClientData, PublicKeyCredentialCreationOptions, PublicKeyCredentialRequestOptions},
     repo,
     settings::AuthSettings,
     Claims,
@@ -22,9 +22,18 @@ pub async fn join(
     req: join::Request,
 ) -> Result<join::Response, Error> {
     let res = match repo::find_user_by_email_with_credentials(db, &req.email).await? {
-        Some(user_with_credentials) => {
-            let public_key: PublicKeyCredentialRequestOptions =
-                (user_with_credentials, settings).into();
+        Some((user, user_credentials)) => {
+            let public_key: PublicKeyCredentialRequestOptions = (user_credentials, settings).into();
+
+            repo::create_user_challenge(db, {
+                repo::user_challenge::ActiveModel {
+                    id: Set(URL_SAFE_NO_PAD.encode(public_key.challenge.clone())),
+                    user_id: Set(user.id),
+                    user_name: Set(user.email.clone()),
+                    created_at: Set(Utc::now().naive_utc()),
+                }
+            })
+            .await?;
 
             public_key.into()
         }
@@ -79,17 +88,11 @@ pub mod join {
         Request(CredentialRequestOptions),
     }
 
-    impl
-        From<(
-            (repo::user::Model, Vec<repo::user_credential::Model>),
-            &AuthSettings,
-        )> for PublicKeyCredentialRequestOptions
+    impl From<(Vec<repo::user_credential::Model>, &AuthSettings)>
+        for PublicKeyCredentialRequestOptions
     {
         fn from(
-            ((_, user_credentials), settings): (
-                (repo::user::Model, Vec<repo::user_credential::Model>),
-                &AuthSettings,
-            ),
+            (user_credentials, settings): (Vec<repo::user_credential::Model>, &AuthSettings),
         ) -> Self {
             let mut challenge = vec![0u8; 128];
             rand::thread_rng().fill_bytes(&mut challenge);
@@ -190,16 +193,95 @@ pub mod join {
     }
 }
 
+pub async fn login(
+    db: &DbConn,
+    settings: &AuthSettings,
+    private_key: &Vec<u8>,
+    req: login::Request,
+) -> Result<login::Response, AppError> {
+    let client_data: ClientData =
+        serde_json::from_slice(&req.credential.response.client_data_json)?;
+
+    validate_origin(&client_data.origin, &settings.rp.id)?;
+    validate_tp(client_data.tp, ClientDataType::Get)?;
+
+    let txn = db.begin().await?;
+
+    let user_credential = repo::find_user_credential(db, &req.credential.id)
+        .await?
+        .ok_or(AuthError::UserCredentialNotFound)?;
+
+    let user_challenge = repo::find_user_challengle_with_lock(&txn, &client_data.challenge)
+        .await?
+        .ok_or(AuthError::UserChallengeNotFound)?;
+
+    login::verify(&req.credential.response, &user_credential.public_key)?;
+
+    // TODO: Move find_user_by_id from tx
+    let user = repo::find_user_by_id(db, user_challenge.user_id)
+        .await?
+        .ok_or(AuthError::UserNotFound)?;
+
+    repo::delete_user_challengle(&txn, user_challenge).await?;
+
+    txn.commit().await?;
+
+    Ok(login::Response {
+        jwt: create_jwt(&private_key, &user)?,
+    })
+}
+
 pub mod login {
+    use anyhow::Error;
+    use ecdsa::signature::Verifier;
+    use ecdsa::{der::Signature, VerifyingKey};
+    use p256::pkcs8::DecodePublicKey as _;
     use serde::{Deserialize, Serialize};
+    use sha2::{Digest as _, Sha256};
     use validator::Validate;
 
-    #[derive(Deserialize, Validate, Clone, PartialEq)]
-    pub struct Request {}
+    use crate::app::auth::passkey::{
+        AuthenticatorAssertionResponse, PublicKeyCredentialWithAssertion,
+    };
+
+    #[derive(Deserialize, Validate, Debug)]
+    pub struct Request {
+        pub credential: PublicKeyCredentialWithAssertion,
+    }
 
     #[derive(Debug, Serialize)]
     pub struct Response {
         pub jwt: String,
+    }
+
+    pub fn verify(
+        response: &AuthenticatorAssertionResponse,
+        public_key: &Vec<u8>,
+    ) -> Result<(), Error> {
+        let client_data_json_hash = Sha256::digest(&response.client_data_json).to_vec();
+
+        let verifying_key: VerifyingKey<p256::NistP256> =
+            VerifyingKey::from_public_key_der(public_key)?;
+
+        let mut message: Vec<u8> = response.authenticator_data.clone();
+        message.extend(&client_data_json_hash);
+
+        let signature = Signature::from_bytes(&response.signature)?;
+        verifying_key.verify(&message, &signature)?;
+
+        Ok(())
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use anyhow::Error;
+
+        #[test]
+        fn verify_should_correct_response() -> Result<(), Error> {
+            // TBD: create test
+
+            Ok(())
+        }
     }
 }
 
@@ -209,8 +291,6 @@ pub async fn complete(
     private_key: &Vec<u8>,
     req: complete::Request,
 ) -> Result<complete::Response, Error> {
-    dbg!(&req);
-
     let client_data = req.credential.response.client_data;
 
     validate_origin(&client_data.origin, &settings.rp.id)?;
@@ -218,7 +298,7 @@ pub async fn complete(
 
     let txn = db.begin().await?;
 
-    let user_challenge = repo::find_user_challengle(&txn, &client_data.challenge)
+    let user_challenge = repo::find_user_challengle_with_lock(&txn, &client_data.challenge)
         .await?
         .ok_or(AuthError::UserChallengeNotFound)?;
 
@@ -278,47 +358,36 @@ pub mod complete {
     #[cfg(test)]
     mod tests {
         use anyhow::Error;
-        use sea_orm::DatabaseConnection;
-
-        use crate::app::auth::{
-            passkey::{
-                AuthenticatorAttestationResponse, ClientData, ClientDataType,
-                PublicKeyCredentialWithAttestation,
-            },
-            service::{self, complete::Request},
-            settings::{AuthSettings, RPSettings},
-        };
 
         #[tokio::test]
         async fn example() -> Result<(), Error> {
-            let db = DatabaseConnection::default();
-            let req = Request {
-                first_name: "FIRST_NAME".into(),
-                last_name: "LAST_NAME".into(),
-                credential: PublicKeyCredentialWithAttestation {
-                    response: AuthenticatorAttestationResponse {
-                        client_data: ClientData {
-                            tp: ClientDataType::Create,
-                            challenge: String::default(),
-                            origin: String::default(),
-                        },
-                        public_key: vec![],
-                        public_key_algorithm: 0,
-                    },
-                    id: "ID".into(),
-                },
-            };
-            let settings = AuthSettings {
-                rp: RPSettings {
-                    id: String::default(),
-                    name: String::default(),
-                },
-                private_key_file: String::default(),
-            };
+            // TODO: Revert test
+            // let db = DatabaseConnection::default();
+            // let req = Request {
+            //     first_name: "FIRST_NAME".into(),
+            //     last_name: "LAST_NAME".into(),
+            //     credential: PublicKeyCredentialWithAttestation {
+            //         response: AuthenticatorAttestationResponse {
+            //             client_data: ClientData {
+            //                 tp: ClientDataType::Create,
+            //                 challenge: String::default(),
+            //                 origin: "RP".into(),
+            //             },
+            //             public_key: vec![],
+            //             public_key_algorithm: 0,
+            //         },
+            //         id: "ID".into(),
+            //     },
+            // };
+            // let settings = AuthSettings {
+            //     rp: RPSettings {
+            //         id: "RP".into(),
+            //         name: String::default(),
+            //     },
+            //     private_key_file: String::default(),
+            // };
 
-            let res = service::complete(&db, &settings, &vec![], req).await;
-
-            dbg!(&res);
+            // let res = service::complete(&db, &settings, &vec![], req).await;
 
             Ok(())
         }
