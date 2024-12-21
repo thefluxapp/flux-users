@@ -12,11 +12,11 @@ flux-users-api = { path = "lib/api" }
 flux-lib = { git = "https://github.com/thefluxapp/flux-lib.git" }
 
 anyhow = "1.0.94"
-thiserror = "2.0.7"
+thiserror = "2.0.8"
 base64 = "0.22.1"
-config = { version = "0.14", default-features = false, features = ["toml"] }
+config = { version = "0.15", default-features = false, features = ["toml"] }
 log = "0.4.22"
-validator = { version = "0.18.1", features = ["derive"] }
+validator = { version = "0.19.0", features = ["derive"] }
 uuid = { version = "1.11.0", features = ["v7"] }
 rand = "0.8.5"
 random_color = "1.0.0"
