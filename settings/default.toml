@@ -1,10 +1,10 @@
-_name = "flux-auth"
+_name = "flux-users"
 
 [http]
 endpoint = "0.0.0.0:3000"
 
 [db]
-endpoint = "postgres://postgres:postgres@0.0.0.0:5432/flux-auth"
+endpoint = "postgres://postgres:postgres@0.0.0.0:5432/flux-users"
 
 [auth.rp]
 id = "theflux.app"

@@ -1,5 +1,5 @@
 [package]
-name = "flux-auth"
+name = "flux-users"
 version = "0.1.0"
 edition = "2021"
 
@@ -8,7 +8,7 @@ members = ["lib/api", "lib/migration"]
 resolver = "2"
 
 [dependencies]
-flux-auth-api = { path = "lib/api" }
+flux-users-api = { path = "lib/api" }
 flux-lib = { git = "https://github.com/thefluxapp/flux-lib.git" }
 
 anyhow = "1.0.94"
