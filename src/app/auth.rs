@@ -1,4 +1,4 @@
-use flux_auth_api::auth_service_server::AuthServiceServer;
+use flux_users_api::auth_service_server::AuthServiceServer;
 use grpc::GrpcAuthService;
 use serde::Serialize;
 use uuid::Uuid;

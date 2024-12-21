@@ -1,4 +1,4 @@
-use flux_auth_api::{
+use flux_users_api::{
     auth_service_server::AuthService, CompleteRequest, CompleteResponse, JoinRequest, JoinResponse,
     LoginRequest, LoginResponse, MeRequest, MeResponse,
 };
@@ -57,7 +57,7 @@ async fn join(
 }
 
 mod join {
-    use flux_auth_api::{JoinRequest, JoinResponse};
+    use flux_users_api::{JoinRequest, JoinResponse};
     use serde_json::json;
     use validator::Validate as _;
 
@@ -146,7 +146,7 @@ async fn login(
 }
 
 mod login {
-    use flux_auth_api::{LoginRequest, LoginResponse};
+    use flux_users_api::{LoginRequest, LoginResponse};
     use validator::Validate as _;
 
     use crate::app::{
@@ -186,7 +186,7 @@ async fn complete(
 }
 
 mod complete {
-    use flux_auth_api::{CompleteRequest, CompleteResponse};
+    use flux_users_api::{CompleteRequest, CompleteResponse};
     use validator::Validate as _;
 
     use crate::app::{
@@ -219,7 +219,7 @@ async fn me(AppState { db, .. }: &AppState, request: MeRequest) -> Result<MeResp
 }
 
 mod me {
-    use flux_auth_api::{me_response::User, MeRequest, MeResponse};
+    use flux_users_api::{me_response::User, MeRequest, MeResponse};
     use uuid::Uuid;
     use validator::{Validate as _, ValidationErrors};
 

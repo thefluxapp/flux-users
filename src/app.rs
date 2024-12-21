@@ -23,8 +23,8 @@ pub async fn run() -> Result<(), Error> {
 async fn http(state: &AppState) -> Result<(), Error> {
     let reflection_service = tonic_reflection::server::Builder::configure()
         .register_encoded_file_descriptor_set(tonic_health::pb::FILE_DESCRIPTOR_SET)
-        .register_encoded_file_descriptor_set(flux_auth_api::AUTH_FILE_DESCRIPTOR_SET)
-        .register_encoded_file_descriptor_set(flux_auth_api::USERS_FILE_DESCRIPTOR_SET)
+        .register_encoded_file_descriptor_set(flux_users_api::AUTH_FILE_DESCRIPTOR_SET)
+        .register_encoded_file_descriptor_set(flux_users_api::USERS_FILE_DESCRIPTOR_SET)
         .build_v1alpha()?;
 
     let (_, health_service) = tonic_health::server::health_reporter();

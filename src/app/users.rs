@@ -1,4 +1,4 @@
-use flux_auth_api::users_service_server::UsersServiceServer;
+use flux_users_api::users_service_server::UsersServiceServer;
 use grpc::GrpcUsersService;
 
 use super::state::AppState;

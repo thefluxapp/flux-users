@@ -1,5 +1,5 @@
 use anyhow::Error;
-use flux_auth_api::{
+use flux_users_api::{
     get_users_response::User, users_service_server::UsersService, GetUsersRequest, GetUsersResponse,
 };
 use tonic::{Request, Response, Status};
