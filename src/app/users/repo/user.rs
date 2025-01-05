@@ -31,6 +31,7 @@ impl Model {
 
     pub fn color(&self) -> String {
         random_color::RandomColor::new()
+            .alpha(0.3)
             .seed(self.id.to_string())
             .to_hsla_string()
     }
