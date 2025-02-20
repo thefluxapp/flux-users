@@ -95,7 +95,7 @@ pub mod join {
             (user_credentials, settings): (Vec<repo::user_credential::Model>, &AuthSettings),
         ) -> Self {
             let mut challenge = vec![0u8; 128];
-            rand::thread_rng().fill_bytes(&mut challenge);
+            rand::rng().fill_bytes(&mut challenge);
 
             Self {
                 challenge,
@@ -117,7 +117,7 @@ pub mod join {
         fn from((req, settings): (Request, &AuthSettings)) -> Self {
             let user_id = Uuid::now_v7();
             let mut challenge = vec![0u8; 128];
-            rand::thread_rng().fill_bytes(&mut challenge);
+            rand::rng().fill_bytes(&mut challenge);
 
             Self {
                 challenge,
