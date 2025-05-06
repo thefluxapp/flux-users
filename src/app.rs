@@ -43,7 +43,7 @@ async fn http(state: &AppState) -> Result<(), Error> {
 
     let listener = tokio::net::TcpListener::bind(&state.settings.http.endpoint).await?;
 
-    info!("app: started");
+    info!("app: started on {}", listener.local_addr()?);
     axum::serve(listener, router).await?;
 
     Ok(())
