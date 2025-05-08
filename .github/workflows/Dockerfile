@@ -6,7 +6,7 @@ COPY . .
 RUN apk --no-cache add musl-dev protoc
 RUN cargo build --release
 
-FROM nginx:alpine
+FROM alpine
 
 WORKDIR /app
 
