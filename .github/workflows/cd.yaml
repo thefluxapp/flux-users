@@ -22,3 +22,5 @@ jobs:
           file: ./.github/workflows/Dockerfile
           push: true
           tags: bragovo/flux-users:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
