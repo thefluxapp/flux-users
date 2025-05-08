@@ -11,4 +11,4 @@ FROM nginx:alpine
 WORKDIR /app
 
 COPY --from=builder /app/target/release/flux-api /app/
-COPY --from=builder /app/config/default.toml /app/config/
+COPY --from=builder /app/settings/default.toml /app/
