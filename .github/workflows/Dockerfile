@@ -12,4 +12,4 @@ WORKDIR /app
 
 COPY --from=builder /app/target/release/flux-users /app/
 COPY --from=builder /app/target/release/flux-users-migration /app/
-COPY --from=builder /app/settings/default.toml /app/settings/
+COPY --from=builder /app/settings/default.toml /app/
