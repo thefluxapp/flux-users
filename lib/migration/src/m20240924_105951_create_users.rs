@@ -32,4 +32,5 @@ pub enum Users {
     Email,
     FirstName,
     LastName,
+    Locale,
 }

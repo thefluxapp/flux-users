@@ -307,8 +307,9 @@ pub async fn complete(
         repo::user::Model {
             id: user_challenge.user_id.clone(),
             email: user_challenge.user_name.clone(),
-            first_name: req.first_name.clone(),
-            last_name: req.last_name.clone(),
+            first_name: req.first_name,
+            last_name: req.last_name,
+            locale: Some(req.locale),
             created_at: Utc::now().naive_utc(),
             updated_at: Utc::now().naive_utc(),
         },
@@ -347,6 +348,7 @@ pub mod complete {
     pub struct Request {
         pub first_name: String,
         pub last_name: String,
+        pub locale: String,
         pub credential: PublicKeyCredentialWithAttestation,
     }
 

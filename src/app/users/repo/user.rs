@@ -8,6 +8,7 @@ pub struct Model {
     pub id: Uuid,
     pub first_name: String,
     pub last_name: String,
+    pub locale: Option<String>,
 }
 
 impl Model {
