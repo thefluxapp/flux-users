@@ -198,7 +198,13 @@ mod complete {
         type Error = AppError;
 
         fn try_from(request: CompleteRequest) -> Result<Self, Self::Error> {
-            let data: Self = serde_json::from_str(request.request())?;
+            let data = Self {
+                first_name: request.first_name().into(),
+                last_name: request.first_name().into(),
+                locale: request.locale().into(),
+                credential: serde_json::from_str(request.credential())?,
+            };
+
             data.validate()?;
 
             Ok(data)
