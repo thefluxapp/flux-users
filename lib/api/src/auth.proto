@@ -17,7 +17,10 @@ message JoinResponse {
 }
 
 message CompleteRequest {
-    optional string request = 1;
+    optional string first_name = 101;
+    optional string last_name = 102;
+    optional string locale = 103;
+    optional string credential = 104;
 }
 
 message CompleteResponse {
